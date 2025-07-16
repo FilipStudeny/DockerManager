@@ -10,15 +10,15 @@ from Models.models import (
     ContainerDetails,
     GenericMessageResponse, DockerImageSummary, DockerVolumeSummary
 )
-from Routes.Commands.RestartContainer.RestartContainerCommand import restart_container_command
-from Routes.Commands.StartContainer.StartContainerCommand import start_container_command
-from Routes.Commands.StopContainer.StopContainerCommand import stop_container_command
-from Routes.Queries.GetConainersList.GetContainersListQuery import get_containers_list_query
-from Routes.Queries.GetContainerDetail.GetContainerDetailsQuery import get_container_details_query
-from Routes.Queries.GetContainerLogs.GetContainerLogsQuery import get_container_logs_query
-from Routes.Queries.GetContainerVolumes.GetContainerVolumesQuery import get_container_volumes_query
-from Routes.Queries.GetDockerImages.GetDockerImagesQuery import get_docker_images_query
-from Routes.Queries.GetDockerVolumes.GetDockerVolumesQuery import get_docker_volumes_query
+from Routes.Commands.RestartContainer.restart_container_command import restart_container_command
+from Routes.Commands.StartContainer.start_container_command import start_container_command
+from Routes.Commands.StopContainer.stop_container_command import stop_container_command
+from Routes.Queries.GetConainersList.get_containers_list_query import get_containers_list_query
+from Routes.Queries.GetContainerDetail.get_container_details_query import get_container_details_query
+from Routes.Queries.GetContainerLogs.get_container_logs_query import get_container_logs_query
+from Routes.Queries.GetContainerVolumes.get_container_volumes_query import get_container_volumes_query
+from Routes.Queries.GetDockerImages.get_docker_images_query import get_docker_images_query
+from Routes.Queries.GetDockerVolumes.get_docker_volumes_query import get_docker_volumes_query
 from Utils.getDocker import get_docker_client
 from Utils.logger import logger
 

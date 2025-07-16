@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from Models.models import ContainerDetails, MountInfo
 from Models.models import map_status_to_enum
-from Routes.Queries.GetConainersList.GetContainersListQuery import enrich_container_summary
+from Routes.Queries.GetConainersList.get_containers_list_query import enrich_container_summary
 from Utils.getDocker import get_container, detect_container_errors
 
 

@@ -2,12 +2,12 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from Models.models import ContainerStatusEnum
-from Routes.Queries.GetConainersList.GetContainersListQuery import get_containers_list_query
+from Routes.Queries.GetConainersList.get_containers_list_query import get_containers_list_query
 from Tests.utils.Builders.DockerContainerBuilder import DockerContainerBuilder
 from Tests.utils.Builders.DockerImageBuilder import DockerImageBuilder
 
 
-@patch("Routes.Queries.GetConainersList.GetContainersListQuery.get_docker_client")
+@patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
 def test_get_containers_list_query_returns_multiple(mock_get_client):
     mock_docker = MagicMock()
 
@@ -51,7 +51,7 @@ def test_get_containers_list_query_returns_multiple(mock_get_client):
     assert "error" in result[0].latest_error_message.lower()
 
 
-@patch("Routes.Queries.GetConainersList.GetContainersListQuery.get_docker_client")
+@patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
 def test_get_containers_list_query_returns_empty(mock_get_client):
     mock_docker = MagicMock()
     mock_docker.containers.list.return_value = []
@@ -63,7 +63,7 @@ def test_get_containers_list_query_returns_empty(mock_get_client):
     assert len(result) == 0
 
 
-@patch("Routes.Queries.GetConainersList.GetContainersListQuery.get_docker_client")
+@patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
 def test_get_containers_list_query_raises_exception(mock_get_client):
     mock_get_client.side_effect = Exception("Docker unavailable")
 

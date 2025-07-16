@@ -2,15 +2,15 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from fastapi import HTTPException
-from Routes.Queries.GetContainerDetail.GetContainerDetailsQuery import get_container_details_query
+from Routes.Queries.GetContainerDetail.get_container_details_query import get_container_details_query
 from Models.models import ContainerStatusEnum
 from Tests.utils.Builders.DockerContainerBuilder import DockerContainerBuilder
 from Tests.utils.Builders.DockerImageBuilder import DockerImageBuilder
 from Tests.utils.Builders.DockerVolumeBuilder import DockerVolumeBuilder
 
 
-@patch("Routes.Queries.GetContainerDetail.GetContainerDetailsQuery.get_container")
-@patch("Routes.Queries.GetContainerDetail.GetContainerDetailsQuery.detect_container_errors")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.detect_container_errors")
 def test_get_container_details_query_success(mock_detect_errors, mock_get_container):
     container = (
         DockerContainerBuilder()
@@ -53,7 +53,7 @@ def test_get_container_details_query_success(mock_detect_errors, mock_get_contai
     assert result.error_count == 1
 
 
-@patch("Routes.Queries.GetContainerDetail.GetContainerDetailsQuery.get_container")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
 def test_get_container_details_query_not_found(mock_get_container):
     mock_get_container.return_value = None
 
@@ -64,8 +64,8 @@ def test_get_container_details_query_not_found(mock_get_container):
     assert "not found" in str(excinfo.value.detail).lower()
 
 
-@patch("Routes.Queries.GetContainerDetail.GetContainerDetailsQuery.get_container")
-@patch("Routes.Queries.GetContainerDetail.GetContainerDetailsQuery.detect_container_errors")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.detect_container_errors")
 def test_get_container_details_query_exception(mock_detect_errors, mock_get_container):
     mock_container = MagicMock()
     mock_container.status = "running"

@@ -10,6 +10,9 @@ def get_docker_volumes_query() -> List[DockerVolumeSummary]:
     for v in volumes:
         summaries.append(DockerVolumeSummary(
             name=v.name,
+            type="volume",
+            source=v.name,
+            destination=f"/var/lib/docker/volumes/{v.name}/_data",
             driver=v.attrs.get("Driver", ""),
             mountpoint=v.attrs.get("Mountpoint", ""),
             created_at=v.attrs.get("CreatedAt", ""),

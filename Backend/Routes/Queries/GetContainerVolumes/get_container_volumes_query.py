@@ -1,6 +1,8 @@
 from typing import List
-from fastapi import HTTPException
+
 from docker.errors import NotFound
+from fastapi import HTTPException
+
 from Models.models import DockerVolumeSummary
 from Utils.getDocker import get_container, get_docker_client
 
@@ -20,6 +22,9 @@ def get_container_volumes_query(container_id: str) -> List[DockerVolumeSummary]:
                         volume = volumes_client.get(volume_name)
                         used_volumes.append(DockerVolumeSummary(
                             name=volume.name,
+                            type=mount.get("Type", ""),
+                            source=mount.get("Source", volume.name),  # fallback to volume name
+                            destination=mount.get("Destination", ""),
                             driver=volume.attrs.get("Driver", ""),
                             mountpoint=volume.attrs.get("Mountpoint", ""),
                             created_at=volume.attrs.get("CreatedAt", ""),
