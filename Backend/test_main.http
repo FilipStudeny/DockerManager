@@ -1,0 +1,37 @@
+### Root endpoint
+GET http://127.0.0.1:8000/
+Accept: application/json
+
+### Check if Docker is running
+GET http://127.0.0.1:8000/docker-status
+Accept: application/json
+
+
+### List all containers (running + stopped)
+GET http://127.0.0.1:8000/containers?all=true
+Accept: application/json
+
+
+### Get container details (replace {id} with actual container ID or name)
+GET http://127.0.0.1:8000/containers/e0726ac00946
+Accept: application/json
+
+
+### Get container logs (last 100 lines)
+GET http://127.0.0.1:8000/containers/e0726ac00946/logs?tail=100
+Accept: text/plain
+
+
+### Start a container
+POST http://127.0.0.1:8000/containers/e0726ac00946/start
+Accept: application/json
+
+
+### Stop a container
+POST http://127.0.0.1:8000/containers/e0726ac00946/stop
+Accept: application/json
+
+
+### Restart a container
+POST http://127.0.0.1:8000/containers/{id}/restart
+Accept: application/json
