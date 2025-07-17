@@ -13,6 +13,8 @@ export interface DataTableProps<T> {
 	columns: ColumnConfig<T>[],
 	keyAccessor?: (row: T, index: number)=> React.Key,
 	emptyMessage?: string,
+	isLoading?: boolean,
+	skeletonRows?: number,
 }
 
 export function DataTable<T>({
@@ -20,7 +22,11 @@ export function DataTable<T>({
 	columns,
 	keyAccessor,
 	emptyMessage = "No data found.",
+	isLoading = false,
+	skeletonRows = 6,
 }: DataTableProps<T>) {
+	const rowsToRender = isLoading ? Array.from({ length: skeletonRows }) : data;
+
 	return (
 		<div className="rounded-2xl overflow-hidden shadow border border-neutral-200 bg-white">
 			<div className="w-full overflow-x-auto">
@@ -38,18 +44,34 @@ export function DataTable<T>({
 						</tr>
 					</thead>
 					<tbody className="divide-y divide-neutral-200">
-						{data.length === 0 ? (
+						{!isLoading && data.length === 0 ? (
 							<tr>
 								<td colSpan={columns.length} className="px-6 py-8 text-center text-neutral-400">
 									{emptyMessage}
 								</td>
 							</tr>
 						) : (
-							data.map((row, index) => (
-								<tr key={keyAccessor ? keyAccessor(row, index) : index} className="hover:bg-neutral-50 transition">
+							rowsToRender.map((_, index) => (
+								<tr
+									key={
+										isLoading
+											? `skeleton-${index}`
+											: keyAccessor?.(data[index], index) ?? index
+									}
+									className="hover:bg-neutral-50 transition"
+								>
 									{columns.map((col, i) => (
-										<td key={i} className={`px-6 py-4 text-${col.align || "left"}`}>
-											{col.render ? col.render(row) : (row[col.accessor!] as React.ReactNode)}
+										<td
+											key={i}
+											className={`px-6 py-4 text-${col.align || "left"}`}
+										>
+											{isLoading ? (
+												<div className="h-4 bg-neutral-200 rounded w-3/4 animate-pulse"></div>
+											) : col.render ? (
+												col.render(data[index])
+											) : (
+												(data[index][col.accessor!] as React.ReactNode)
+											)}
 										</td>
 									))}
 								</tr>

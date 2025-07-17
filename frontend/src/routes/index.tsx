@@ -1,5 +1,3 @@
-import { LoadingPage } from "@/components/LoadinPage";
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import {
 	ServerCog,
@@ -21,6 +19,12 @@ import {
 	LabelList,
 } from "recharts";
 
+import { useGetDockerLatestLog } from "@/actions/queries/getDockerLatestLog";
+import { useDockerOverview } from "@/actions/queries/getDockerOverview";
+import { useGetDockerPerformanceWarning } from "@/actions/queries/getDockerPerformanceWarning";
+import { useGetDockerTopContainers } from "@/actions/queries/getDockerTopContainers";
+import { LoadingPage } from "@/components/LoadinPage";
+
 export const Route = createFileRoute("/")({
 	component: DockerDashboard,
 	pendingComponent: () => LoadingPage,
@@ -29,47 +33,19 @@ export const Route = createFileRoute("/")({
 function DockerDashboard() {
 	const router = useRouter();
 
-	const { data, isLoading, isError } = useQuery({
-		queryKey: ["dockerInfo"],
-		queryFn: async () => {
-			await new Promise((res) => setTimeout(res, 300));
-
-			return {
-				version: "24.0.7",
-				total_containers: 14,
-				running_containers: 8,
-				failed_containers: 2,
-				images: 10,
-				volumes: 5,
-				logs: {
-					count: 157,
-					latest: "Container 'web-app' restarted due to exit code 137.",
-				},
-				performance_warning: {
-					message: "High CPU usage detected in container 'db'",
-				},
-				top_containers_stats: [
-					{ id: "1", name: "web-app", cpu: 42.3, memory: 30.4 },
-					{ id: "2", name: "db", cpu: 85.6, memory: 78.2 },
-					{ id: "3", name: "redis", cpu: 12.7, memory: 25.9 },
-					{ id: "4", name: "nginx", cpu: 65.1, memory: 48.0 },
-				],
-			};
-		},
-		refetchInterval: 5000,
-	});
-
-	if (isLoading) return <div className="p-6 text-gray-600">Loading Docker Info...</div>;
-	if (isError) return <div className="p-6 text-red-500">Failed to load data.</div>;
+	const { data: dockerOverviewData, isLoading: isLoadingDockerOverviewData } = useDockerOverview();
+	const { data: dockerGraphData, isLoading: isLoadingDockerGraphData } = useGetDockerTopContainers();
+	const { data: dockerLatestLog, isLoading: isLoadingLatestLog } = useGetDockerLatestLog();
+	const { data: dockerPerformanceWarning, isLoading: isLoadingPerformanceWarning } = useGetDockerPerformanceWarning();
 
 	const cards = [
-		{ label: "Docker Version", value: data.version, icon: <ServerCog size={20} />, to: "/about" },
-		{ label: "Total Containers", value: data.total_containers, icon: <Boxes size={20} />, to: "/containers" },
-		{ label: "Running Containers", value: data.running_containers, icon: <Layers3 size={20} />, to: "/containers?status=running" },
-		{ label: "Failed Containers", value: data.failed_containers, icon: <AlertTriangle size={20} className="text-red-500" />, to: "/containers?status=exited" },
-		{ label: "Images", value: data.images, icon: <HardDrive size={20} />, to: "/images" },
-		{ label: "Volumes", value: data.volumes, icon: <FolderOpen size={20} />, to: "/volumes" },
-		{ label: "Total Logs", value: data.logs.count, icon: <ScrollText size={20} />, to: "/logs" },
+		{ label: "Docker Version", value: dockerOverviewData?.version, icon: <ServerCog size={20} />, to: "/about" },
+		{ label: "Total Containers", value: dockerOverviewData?.total_containers, icon: <Boxes size={20} />, to: "/containers" },
+		{ label: "Running Containers", value: dockerOverviewData?.running_containers, icon: <Layers3 size={20} />, to: "/containers?status=running" },
+		{ label: "Failed Containers", value: dockerOverviewData?.failed_containers, icon: <AlertTriangle size={20} className="text-red-500" />, to: "/containers?status=exited" },
+		{ label: "Images", value: dockerOverviewData?.images, icon: <HardDrive size={20} />, to: "/images" },
+		{ label: "Volumes", value: dockerOverviewData?.volumes, icon: <FolderOpen size={20} />, to: "/volumes" },
+		{ label: "Total Logs", value: dockerOverviewData?.logs_count, icon: <ScrollText size={20} />, to: "/logs" },
 	];
 
 	return (
@@ -78,83 +54,135 @@ function DockerDashboard() {
 
 			{/* Dashboard Cards */}
 			<div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-				{cards.map((card) => (
-					<DashboardCard
-						key={card.label}
-						to={card.to}
-						label={card.label}
-						value={card.value}
-						icon={card.icon}
-					/>
-				))}
+				{isLoadingDockerOverviewData
+					? Array.from({ length: 7 }).map((_, idx) => <DashboardCardSkeleton key={idx} />)
+					: cards.map((card) => (
+						<DashboardCard
+							key={card.label}
+							to={card.to}
+							label={card.label}
+							value={card.value ?? ""}
+							icon={card.icon}
+						/>
+					))}
 			</div>
 
 			{/* Resource Usage Chart */}
 			<section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
 				<h2 className="text-xl font-semibold text-gray-800 mb-4">Container Resource Usage</h2>
-				<ResponsiveContainer width="100%" height={340}>
-					<BarChart
-						data={data.top_containers_stats}
-						layout="vertical"
-						margin={{ left: 80, right: 20 }}
-						barSize={20}
-					>
-						<XAxis type="number" domain={[0, 100]} unit="%" />
-						<YAxis
-							type="category"
-							dataKey="name"
-							tick={{ fontSize: 13, fill: "#334155" }}
-						/>
-						<Tooltip
-							formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name.toUpperCase()]}
-							contentStyle={{ fontSize: "14px", borderRadius: 8 }}
-						/>
-						<Bar
-							dataKey="cpu"
-							name="CPU"
-							radius={[0, 8, 8, 0]}
-							onClick={(entry) => router.navigate({ to: `/containers/${entry.id}` })}
+
+				{isLoadingDockerGraphData ? (
+					<div className="h-[340px] flex items-center justify-center text-gray-400 animate-pulse">
+						Loading container stats...
+					</div>
+				) : (
+					<ResponsiveContainer width="100%" height={340}>
+						<BarChart
+							data={dockerGraphData ?? []}
+							layout="vertical"
+							margin={{ left: 80, right: 20 }}
+							barSize={20}
 						>
-							<LabelList dataKey="cpu" position="right" formatter={(v) => `${v.toFixed(1)}%`} />
-							{data.top_containers_stats.map((entry, index) => (
-								<Cell
-									key={`cpu-${index}`}
-									fill={entry.cpu > 80 ? "#dc2626" : entry.cpu > 50 ? "#facc15" : "#22c55e"}
+							<XAxis type="number" domain={[0, 100]} unit="%" />
+							<YAxis
+								type="category"
+								dataKey="name"
+								tick={{ fontSize: 13, fill: "#334155" }}
+							/>
+							<Tooltip
+								formatter={(value: unknown, name: string) =>
+									typeof value === "number"
+										? [`${value.toFixed(1)}%`, name.toUpperCase()]
+										: [String(value), name.toUpperCase()]
+								}
+							/>
+							{/* CPU Usage */}
+							<Bar
+								dataKey="cpu"
+								name="CPU"
+								radius={[0, 8, 8, 0]}
+								onClick={(entry) =>
+									router.navigate({ to: `/containers/${entry.id}` })
+								}
+							>
+								<LabelList
+									dataKey="cpu"
+									position="right"
+									formatter={(v) =>
+										typeof v === "number" ? `${v.toFixed(1)}%` : String(v)
+									}
 								/>
-							))}
-						</Bar>
-						<Bar
-							dataKey="memory"
-							name="Memory"
-							radius={[0, 8, 8, 0]}
-							onClick={(entry) => router.navigate({ to: `/containers/${entry.id}` })}
-						>
-							<LabelList dataKey="memory" position="right" formatter={(v) => `${v.toFixed(1)}%`} />
-							{data.top_containers_stats.map((entry, index) => (
-								<Cell
-									key={`mem-${index}`}
-									fill={entry.memory > 80 ? "#dc2626" : entry.memory > 50 ? "#facc15" : "#3b82f6"}
+								{dockerGraphData?.map((entry, index) => (
+									<Cell
+										key={`cpu-${index}`}
+										fill={
+											entry.cpu > 80
+												? "#dc2626"
+												: entry.cpu > 50
+													? "#facc15"
+													: "#22c55e"
+										}
+									/>
+								))}
+							</Bar>
+
+							{/* Memory Usage */}
+							<Bar
+								dataKey="memory"
+								name="Memory"
+								radius={[0, 8, 8, 0]}
+								onClick={(entry) =>
+									router.navigate({ to: `/containers/${entry.id}` })
+								}
+							>
+								<LabelList
+									dataKey="memory"
+									position="right"
+									formatter={(v) =>
+										typeof v === "number" ? `${v.toFixed(1)}%` : String(v)
+									}
 								/>
-							))}
-						</Bar>
-					</BarChart>
-				</ResponsiveContainer>
-				<p className="text-xs text-gray-500 mt-3">Click any bar to open container details.</p>
+								{dockerGraphData?.map((entry, index) => (
+									<Cell
+										key={`mem-${index}`}
+										fill={
+											entry.memory > 80
+												? "#dc2626"
+												: entry.memory > 50
+													? "#facc15"
+													: "#3b82f6"
+										}
+									/>
+								))}
+							</Bar>
+						</BarChart>
+					</ResponsiveContainer>
+				)}
+
+				<p className="text-xs text-gray-500 mt-3">
+					Click any bar to open container details.
+				</p>
 			</section>
 
 			{/* Latest Log */}
 			<section className="bg-white p-5 rounded-xl shadow border border-gray-200">
 				<h2 className="text-lg font-semibold text-gray-800 mb-2">Latest Log Entry</h2>
-				<p className="text-sm text-gray-700">{data.logs.latest}</p>
+				{isLoadingLatestLog ? (
+					<div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse" />
+				) : (
+					<p className="text-sm text-gray-700">{dockerLatestLog?.latest}</p>
+				)}
 			</section>
 
 			{/* Performance Warning */}
-			{data.performance_warning?.message && (
+			{isLoadingPerformanceWarning ? (
+				<div className="h-12 bg-yellow-100 border border-yellow-300 rounded-lg animate-pulse" />
+			) : dockerPerformanceWarning ? (
 				<div className="flex items-start gap-2 bg-yellow-100 border border-yellow-300 text-yellow-800 p-4 rounded-lg shadow-sm">
 					<AlertTriangle size={20} className="mt-1" />
-					<span className="text-sm font-medium">{data.performance_warning.message}</span>
+					<span className="text-sm font-medium">{dockerPerformanceWarning.message}</span>
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 }
@@ -181,9 +209,7 @@ export function DashboardCard({
 
 	const content = (
 		<div className={`${baseClass} ${borderColor} ${bgColor}`}>
-			<div className="bg-blue-100 text-blue-600 p-2 rounded-full">
-				{icon}
-			</div>
+			<div className="bg-blue-100 text-blue-600 p-2 rounded-full">{icon}</div>
 			<div className="flex flex-col justify-center">
 				<span className="text-xs text-gray-500">{label}</span>
 				<span className="text-lg font-bold text-gray-800">{value}</span>
@@ -195,5 +221,21 @@ export function DashboardCard({
 		return <Link to={to}>{content}</Link>;
 	}
 
-	return <button onClick={onClick} className="w-full text-left">{content}</button>;
+	return (
+		<button onClick={onClick} className="w-full text-left">
+			{content}
+		</button>
+	);
+}
+
+export function DashboardCardSkeleton() {
+	return (
+		<div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 animate-pulse">
+			<div className="bg-gray-200 rounded-full w-10 h-10" />
+			<div className="flex flex-col justify-center w-full space-y-2">
+				<div className="h-3 w-1/3 bg-gray-200 rounded" />
+				<div className="h-5 w-1/2 bg-gray-300 rounded" />
+			</div>
+		</div>
+	);
 }

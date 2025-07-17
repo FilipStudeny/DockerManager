@@ -44,30 +44,39 @@ app.add_middleware(
 def root() -> DockerStatus:
     return DockerStatus(status="Docker Manager API running")
 
-
 @app.get("/docker/overview", response_model=DockerOverview)
 def get_docker_overview():
     client = get_docker_client()
+
     all_containers = client.containers.list(all=True)
     running = client.containers.list(filters={"status": "running"})
     exited = client.containers.list(filters={"status": "exited"})
+    images = client.images.list()
+    volumes = client.volumes.list()
+
+    total_log_lines = 0
+    for container in all_containers:
+        try:
+            logs = container.logs(tail=1000)
+            total_log_lines += len(logs.splitlines())
+        except Exception:
+            continue
 
     return DockerOverview(
         version=client.version()["Version"],
         total_containers=len(all_containers),
         running_containers=len(running),
         failed_containers=len(exited),
-        images=len(client.images.list()),
-        volumes=len(client.volumes.list().get("Volumes", [])),
+        images=len(images),
+        volumes=len(volumes),
+        logs_count=total_log_lines,
     )
-
 
 @app.get("/docker/top-containers", response_model=List[ContainerStats])
 def get_top_containers():
     client = get_docker_client()
     containers = client.containers.list()
 
-    # Dummy metrics for example — replace with real CPU/mem stats if needed
     dummy_data = [
         {"id": c.id[:12], "name": c.name, "cpu": 42.3, "memory": 30.4} for c in containers[:4]
     ]
@@ -81,7 +90,6 @@ def get_performance_warning():
 
 @app.get("/docker/logs/latest", response_model=LogInfo)
 def get_latest_log():
-    # Dummy data for now — connect to real logging in production
     return LogInfo(
         count=157,
         latest="Container 'web-app' restarted due to exit code 137."

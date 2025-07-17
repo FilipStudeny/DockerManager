@@ -54,6 +54,9 @@ def enrich_container_summary(
         if container.status == "running" else None
     )
 
+    mounts = container.attrs.get("Mounts", [])
+    volume_count = len(mounts)
+
     return ContainerSummary(
         id=container.short_id,
         name=container.name,
@@ -65,4 +68,5 @@ def enrich_container_summary(
         ports=ports,
         error_count=error_count,
         latest_error_message=latest_error,
+        volumes=volume_count
     )

@@ -48,7 +48,7 @@ class ContainerSummary(BaseModel):
     ports: List[PortBinding] = Field(default_factory=list, description="Published ports")
     error_count: int = Field(0, description="Number of error events for the container")
     latest_error_message: Optional[str] = Field(None, description="Most recent error message, if any")
-
+    volumes: int
 
 class ContainerDetails(ContainerSummary):
     ip_address: str = Field(..., description="Container's internal IP address")
@@ -106,7 +106,7 @@ class DockerOverview(BaseModel):
     failed_containers: int
     images: int
     volumes: int
-
+    logs_count: int
 
 # ------------------ Container Stats ------------------ #
 

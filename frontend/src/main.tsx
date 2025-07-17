@@ -9,11 +9,8 @@ import { routeTree } from "./routeTree.gen";
 
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
-import { DefaultService, OpenAPI, type DockerStatus } from "./client/index.ts";
 
-import { useQuery } from "@tanstack/react-query";
 
-OpenAPI.BASE = 'http://localhost:8000';
 
 // Create a new router instance
 const router = createRouter({

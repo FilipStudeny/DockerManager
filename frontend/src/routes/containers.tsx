@@ -12,39 +12,23 @@ import { useState, type JSX } from "react";
 
 import { DashboardCard } from ".";
 
+import type { ContainerStatusEnum, ContainerSummary } from "@/client";
+
+import { useGetContainersList } from "@/actions/queries/getContainersList";
 import { DataTable, type ColumnConfig } from "@/components/DataTable";
 
 export const Route = createFileRoute("/containers")({
 	component: ContainersPage,
 });
 
-type ContainerStatus = "RUNNING" | "STOPPED" | "RESTARTED" | "FAILED";
-
-interface Container {
-	id: string,
-	name: string,
-	status: ContainerStatus,
-	image: string[],
-	volumes: number,
-	error_count: number,
-	created_at: string,
-}
-
-const mockContainers: Container[] = [
-	{ id: "a1", name: "web-app", status: "RUNNING", image: ["web-app:latest"], volumes: 2, error_count: 0, created_at: "2025-07-17T10:00:00Z" },
-	{ id: "b2", name: "db", status: "FAILED", image: ["postgres:15"], volumes: 1, error_count: 3, created_at: "2025-07-17T09:00:00Z" },
-	{ id: "c3", name: "nginx", status: "STOPPED", image: ["nginx:1.25"], volumes: 0, error_count: 0, created_at: "2025-07-16T08:30:00Z" },
-	{ id: "d4", name: "redis", status: "RESTARTED", image: ["redis:7"], volumes: 1, error_count: 1, created_at: "2025-07-17T11:00:00Z" },
-];
-
-const badgeStyles: Record<ContainerStatus, string> = {
+const badgeStyles: Record<ContainerStatusEnum, string> = {
 	RUNNING: "bg-emerald-100 text-emerald-700",
 	STOPPED: "bg-gray-200 text-gray-800",
 	RESTARTED: "bg-indigo-100 text-indigo-700",
 	FAILED: "bg-rose-100 text-rose-700",
 };
 
-const statusIcons: Record<ContainerStatus, JSX.Element> = {
+const statusIcons: Record<ContainerStatusEnum, JSX.Element> = {
 	RUNNING: <Layers3 size={20} />,
 	STOPPED: <PauseOctagon size={20} />,
 	RESTARTED: <RefreshCcw size={20} />,
@@ -53,25 +37,27 @@ const statusIcons: Record<ContainerStatus, JSX.Element> = {
 
 function ContainersPage() {
 	const [search, setSearch] = useState("");
-	const [statusFilter, setStatusFilter] = useState<ContainerStatus | "">("");
+	const [statusFilter, setStatusFilter] = useState<ContainerStatusEnum | "">("");
 
-	const filtered = mockContainers.filter(
+	const { data: containersList, isLoading: isLoadingContainersList } = useGetContainersList();
+
+	const filtered = containersList?.filter(
 		(c) =>
 			c.name.toLowerCase().includes(search.toLowerCase()) &&
 			(statusFilter === "" || c.status === statusFilter),
-	);
+	) ?? [];
 
 	const statusCounts = {
-		RUNNING: mockContainers.filter((c) => c.status === "RUNNING").length,
-		STOPPED: mockContainers.filter((c) => c.status === "STOPPED").length,
-		RESTARTED: mockContainers.filter((c) => c.status === "RESTARTED").length,
-		FAILED: mockContainers.filter((c) => c.status === "FAILED").length,
+		RUNNING: containersList?.filter((c) => c.status === "RUNNING").length ?? 0,
+		STOPPED: containersList?.filter((c) => c.status === "STOPPED").length ?? 0,
+		RESTARTED: containersList?.filter((c) => c.status === "RESTARTED").length ?? 0,
+		FAILED: containersList?.filter((c) => c.status === "FAILED").length ?? 0,
 	};
 
-	const columns: ColumnConfig<Container>[] = [
+	const columns: ColumnConfig<ContainerSummary>[] = [
 		{ label: "Name", accessor: "name" },
 		{ label: "ID", accessor: "id" },
-		{ label: "Image", render: (c) => c.image.join(", ") },
+		{ label: "Image", render: (c) => c.image?.join(", ") || "—" },
 		{ label: "Volumes", accessor: "volumes" },
 		{
 			label: "Status",
@@ -86,7 +72,7 @@ function ContainersPage() {
 		{
 			label: "Errors",
 			render: (c) =>
-				c.error_count > 0 ? (
+				(c.error_count ?? 0) > 0 ? (
 					<span className="inline-flex items-center gap-1 text-rose-600 font-medium">
 						<AlertTriangle size={16} />
 						{c.error_count}
@@ -123,18 +109,17 @@ function ContainersPage() {
 				</button>
 			</div>
 
-			{/* Filter cards */}
+			{/* Filter Cards */}
 			<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
 				<DashboardCard
 					key="ALL"
 					label="All"
-					value={mockContainers.length}
+					value={containersList?.length ?? "-"}
 					icon={<Boxes size={20} />}
 					selected={statusFilter === ""}
 					onClick={() => setStatusFilter("")}
 				/>
-
-				{(Object.keys(statusCounts) as ContainerStatus[]).map((status) => (
+				{(Object.keys(statusCounts) as ContainerStatusEnum[]).map((status) => (
 					<DashboardCard
 						key={status}
 						label={status.charAt(0) + status.slice(1).toLowerCase()}
@@ -146,7 +131,7 @@ function ContainersPage() {
 				))}
 			</div>
 
-			{/* Table with search */}
+			{/* Table */}
 			<div className="rounded-2xl overflow-hidden shadow border border-neutral-200 bg-white">
 				<div className="bg-gray-900 border-b border-neutral-700 px-6 py-4">
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -164,6 +149,7 @@ function ContainersPage() {
 					data={filtered}
 					columns={columns}
 					keyAccessor={(row) => row.id}
+					isLoading={isLoadingContainersList}
 				/>
 			</div>
 		</div>
