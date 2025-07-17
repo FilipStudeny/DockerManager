@@ -1,25 +1,22 @@
-import { Outlet, createRootRouteWithContext } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 
-import Header from '../components/Header'
+import type { QueryClient } from "@tanstack/react-query";
 
-import TanStackQueryLayout from '../integrations/tanstack-query/layout.tsx'
-
-import type { QueryClient } from '@tanstack/react-query'
+import { LoadingPage } from "@/components/LoadinPage";
+import { SidebarLayout } from "@/components/NavBar";
 
 interface MyRouterContext {
-  queryClient: QueryClient
+	queryClient: QueryClient,
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  component: () => (
-    <>
-      <Header />
-
-      <Outlet />
-      <TanStackRouterDevtools />
-
-      <TanStackQueryLayout />
-    </>
-  ),
-})
+	component: () => (
+		<div className="relative flex h-screen">
+			<SidebarLayout />
+			<main className="flex-1 bg-gray-100 overflow-auto pt-14 sm:pt-0">
+				<Outlet />
+			</main>
+		</div>
+	),
+	pendingComponent: LoadingPage,
+});

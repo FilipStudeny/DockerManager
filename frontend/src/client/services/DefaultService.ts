@@ -3,11 +3,15 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ContainerDetails } from '../models/ContainerDetails';
+import type { ContainerStats } from '../models/ContainerStats';
 import type { ContainerSummary } from '../models/ContainerSummary';
 import type { DockerImageSummary } from '../models/DockerImageSummary';
+import type { DockerOverview } from '../models/DockerOverview';
 import type { DockerStatus } from '../models/DockerStatus';
 import type { DockerVolumeSummary } from '../models/DockerVolumeSummary';
 import type { GenericMessageResponse } from '../models/GenericMessageResponse';
+import type { LogInfo } from '../models/LogInfo';
+import type { PerformanceWarning } from '../models/PerformanceWarning';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -21,6 +25,50 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/',
+        });
+    }
+    /**
+     * Get Docker Overview
+     * @returns DockerOverview Successful Response
+     * @throws ApiError
+     */
+    public static getDockerOverviewDockerOverviewGet(): CancelablePromise<DockerOverview> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/docker/overview',
+        });
+    }
+    /**
+     * Get Top Containers
+     * @returns ContainerStats Successful Response
+     * @throws ApiError
+     */
+    public static getTopContainersDockerTopContainersGet(): CancelablePromise<Array<ContainerStats>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/docker/top-containers',
+        });
+    }
+    /**
+     * Get Performance Warning
+     * @returns PerformanceWarning Successful Response
+     * @throws ApiError
+     */
+    public static getPerformanceWarningDockerPerformanceWarningGet(): CancelablePromise<PerformanceWarning> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/docker/performance-warning',
+        });
+    }
+    /**
+     * Get Latest Log
+     * @returns LogInfo Successful Response
+     * @throws ApiError
+     */
+    public static getLatestLogDockerLogsLatestGet(): CancelablePromise<LogInfo> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/docker/logs/latest',
         });
     }
     /**

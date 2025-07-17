@@ -97,3 +97,32 @@ class DockerVolumeSummary(BaseModel):
     size: Optional[str] = Field(None, description="Human-readable volume size (if available)")
     labels: Dict[str, str] = Field(default_factory=dict, description="Metadata labels (Docker volumes)")
 
+# ------------------ Docker Overview ------------------ #
+
+class DockerOverview(BaseModel):
+    version: str
+    total_containers: int
+    running_containers: int
+    failed_containers: int
+    images: int
+    volumes: int
+
+
+# ------------------ Container Stats ------------------ #
+
+class ContainerStats(BaseModel):
+    id: str
+    name: str
+    cpu: float = Field(..., ge=0.0, le=100.0, description="CPU usage in percent")
+    memory: float = Field(..., ge=0.0, le=100.0, description="Memory usage in percent")
+
+
+# ------------------ Logging & Alerts ------------------ #
+
+class LogInfo(BaseModel):
+    count: int = Field(..., description="Total number of log entries")
+    latest: str = Field(..., description="Most recent log message")
+
+
+class PerformanceWarning(BaseModel):
+    message: str

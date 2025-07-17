@@ -33,5 +33,5 @@ Accept: application/json
 
 
 ### Restart a container
-POST http://127.0.0.1:8000/containers/{id}/restart
+POST http://127.0.0.1:8000/containers/e0726ac00946/restart
 Accept: application/json

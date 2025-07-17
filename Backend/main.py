@@ -3,12 +3,14 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from Models.models import (
     DockerStatus,
     ContainerSummary,
     ContainerDetails,
-    GenericMessageResponse, DockerImageSummary, DockerVolumeSummary
+    GenericMessageResponse, DockerImageSummary, DockerVolumeSummary, DockerOverview, ContainerStats, LogInfo,
+    PerformanceWarning
 )
 from Routes.Commands.RestartContainer.restart_container_command import restart_container_command
 from Routes.Commands.StartContainer.start_container_command import start_container_command
@@ -25,6 +27,14 @@ from Utils.logger import logger
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ---------------------
 # Endpoints
@@ -35,13 +45,58 @@ def root() -> DockerStatus:
     return DockerStatus(status="Docker Manager API running")
 
 
+@app.get("/docker/overview", response_model=DockerOverview)
+def get_docker_overview():
+    client = get_docker_client()
+    all_containers = client.containers.list(all=True)
+    running = client.containers.list(filters={"status": "running"})
+    exited = client.containers.list(filters={"status": "exited"})
+
+    return DockerOverview(
+        version=client.version()["Version"],
+        total_containers=len(all_containers),
+        running_containers=len(running),
+        failed_containers=len(exited),
+        images=len(client.images.list()),
+        volumes=len(client.volumes.list().get("Volumes", [])),
+    )
+
+
+@app.get("/docker/top-containers", response_model=List[ContainerStats])
+def get_top_containers():
+    client = get_docker_client()
+    containers = client.containers.list()
+
+    # Dummy metrics for example — replace with real CPU/mem stats if needed
+    dummy_data = [
+        {"id": c.id[:12], "name": c.name, "cpu": 42.3, "memory": 30.4} for c in containers[:4]
+    ]
+    return [ContainerStats(**d) for d in dummy_data]
+
+
+@app.get("/docker/performance-warning", response_model=PerformanceWarning)
+def get_performance_warning():
+    return PerformanceWarning(message="High CPU usage detected in container 'db'")
+
+
+@app.get("/docker/logs/latest", response_model=LogInfo)
+def get_latest_log():
+    # Dummy data for now — connect to real logging in production
+    return LogInfo(
+        count=157,
+        latest="Container 'web-app' restarted due to exit code 137."
+    )
+
+
 @app.get("/docker-status", response_model=DockerStatus)
 def check_docker_status() -> DockerStatus:
     try:
-        get_docker_client().ping()
+        client = get_docker_client()
+        client.ping()
         return DockerStatus(status="Docker is running")
     except Exception as e:
-        logger.error(f"Docker check failed: {e}")
+        import traceback
+        logger.error("Full error:\n" + traceback.format_exc())
         raise HTTPException(status_code=503, detail="Docker is not running or not reachable")
 
 
