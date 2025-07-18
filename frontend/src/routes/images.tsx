@@ -1,46 +1,26 @@
-import { DataTable, type ColumnConfig } from "@/components/DataTable";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import type { DockerImageSummary } from "@/client";
+
+import { useGetDockerImages } from "@/actions/queries/getDockerImages";
+import { DataTable, type ColumnConfig } from "@/components/DataTable";
 
 export const Route = createFileRoute("/images")({
 	component: DockerImagesPage,
 });
 
-interface DockerImageSummary {
-	id: string,
-	tags: string[],
-	size: number,
-	created?: string,
-	architecture?: string,
-	os?: string,
-}
-
-const mockImages: DockerImageSummary[] = [
-	{
-		id: "sha256:abcd1234",
-		tags: ["nginx:1.25", "nginx:latest"],
-		size: 134217728,
-		created: "2025-07-16T14:20:00Z",
-		architecture: "amd64",
-		os: "linux",
-	},
-	{
-		id: "sha256:efgh5678",
-		tags: ["postgres:15"],
-		size: 268435456,
-		created: "2025-07-15T11:00:00Z",
-		architecture: "arm64",
-		os: "linux",
-	},
-];
-
 function DockerImagesPage() {
 	const [search, setSearch] = useState("");
+	const { data: imagesList, isLoading: isLoadingDockerImages } = useGetDockerImages();
 
-	const filtered = mockImages.filter((img) =>
-		img.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase())),
-	);
+	const filtered = imagesList
+		? imagesList.filter((img) =>
+			img.tags.some((tag) =>
+				tag.toLowerCase().includes(search.toLowerCase()),
+			),
+		)
+		: [];
 
 	const columns: ColumnConfig<DockerImageSummary>[] = [
 		{ label: "ID", accessor: "id" },
@@ -73,6 +53,7 @@ function DockerImagesPage() {
 					data={filtered}
 					columns={columns}
 					keyAccessor={(row) => row.id}
+					isLoading={isLoadingDockerImages}
 				/>
 			</div>
 		</div>

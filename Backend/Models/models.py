@@ -2,10 +2,12 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
 
+
 class GenericMessageResponse(BaseModel):
     success: Optional[bool] = Field(None, description="Indicates if the operation was successful")
     code: Optional[int] = Field(None, description="HTTP-like status code representing the outcome")
     message: Optional[str] = Field(None, description="Human-readable message explaining the result")
+
 
 class ContainerStatusEnum(str, Enum):
     running = "RUNNING"
@@ -13,15 +15,16 @@ class ContainerStatusEnum(str, Enum):
     restarted = "RESTARTED"
     failed = "FAILED"
 
+
 def map_status_to_enum(status: str) -> ContainerStatusEnum:
-        if status == "running":
-            return ContainerStatusEnum.running
-        elif status == "exited":
-            return ContainerStatusEnum.stopped
-        elif status == "restarting":
-            return ContainerStatusEnum.restarted
-        else:
-            return ContainerStatusEnum.failed
+    if status == "running":
+        return ContainerStatusEnum.running
+    elif status == "exited":
+        return ContainerStatusEnum.stopped
+    elif status == "restarting":
+        return ContainerStatusEnum.restarted
+    else:
+        return ContainerStatusEnum.failed
 
 
 class PortBinding(BaseModel):
@@ -50,6 +53,7 @@ class ContainerSummary(BaseModel):
     latest_error_message: Optional[str] = Field(None, description="Most recent error message, if any")
     volumes: int
 
+
 class ContainerDetails(ContainerSummary):
     ip_address: str = Field(..., description="Container's internal IP address")
     network_mode: str = Field(..., description="Docker network mode (e.g. bridge, host)")
@@ -71,12 +75,14 @@ class ContainerDetails(ContainerSummary):
     exit_code: Optional[int] = Field(None, description="Exit code of the container if it has stopped")
     state: Optional[str] = Field(None, description="Raw container state (e.g. running, exited)")
 
+
 class DockerStatus(BaseModel):
     status: str = Field(..., description="Docker daemon status message")
 
 
 class ContainerActionResponse(BaseModel):
     message: str = Field(..., description="Action response message (e.g. started, stopped)")
+
 
 class DockerImageSummary(BaseModel):
     id: str
@@ -85,6 +91,7 @@ class DockerImageSummary(BaseModel):
     created: Optional[str]
     architecture: Optional[str]
     os: Optional[str]
+
 
 class DockerVolumeSummary(BaseModel):
     name: Optional[str] = Field(None, description="Volume name (if named Docker volume)")
@@ -97,6 +104,7 @@ class DockerVolumeSummary(BaseModel):
     size: Optional[str] = Field(None, description="Human-readable volume size (if available)")
     labels: Dict[str, str] = Field(default_factory=dict, description="Metadata labels (Docker volumes)")
 
+
 # ------------------ Docker Overview ------------------ #
 
 class DockerOverview(BaseModel):
@@ -107,6 +115,7 @@ class DockerOverview(BaseModel):
     images: int
     volumes: int
     logs_count: int
+
 
 # ------------------ Container Stats ------------------ #
 
@@ -126,3 +135,15 @@ class LogInfo(BaseModel):
 
 class PerformanceWarning(BaseModel):
     message: str
+
+
+class DockerNetworkOverview(BaseModel):
+    id: str
+    name: str
+    driver: str
+    scope: str
+    containers_count: int
+    running_containers_count: int
+    labels: Optional[Dict[str, str]]
+    internal: bool
+    attachable: bool

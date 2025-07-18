@@ -8,6 +8,7 @@ import {
 	Home,
 	Menu,
 	X,
+	Network,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -48,6 +49,9 @@ export function SidebarLayout() {
 						</NavItem>
 						<NavItem to="/volumes" icon={<FolderOpen size={20} />} onClick={() => setOpen(false)}>
 							Volumes
+						</NavItem>
+						<NavItem to="/networks" icon={<Network size={20} />} onClick={() => setOpen(false)}>
+							Networks
 						</NavItem>
 						<NavItem to="/logs" icon={<ScrollText size={20} />} onClick={() => setOpen(false)}>
 							Logs

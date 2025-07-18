@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getPerformanceWarningDockerPerformanceWarningGetOptions } from "@/client/@tanstack/react-query.gen";
+import { getPerformanceWarningOptions } from "@/client/@tanstack/react-query.gen";
 
 export function useGetDockerPerformanceWarning() {
-	return useQuery(getPerformanceWarningDockerPerformanceWarningGetOptions());
+	return useQuery(getPerformanceWarningOptions());
 }

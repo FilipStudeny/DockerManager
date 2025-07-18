@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { listContainersContainersGetOptions } from "@/client/@tanstack/react-query.gen";
+import { listContainersOptions } from "@/client/@tanstack/react-query.gen";
 
 export function useGetContainersList() {
-	return useQuery(listContainersContainersGetOptions());
+	return useQuery(listContainersOptions());
 }

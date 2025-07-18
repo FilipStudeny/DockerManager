@@ -9,6 +9,7 @@ import { routeTree } from "./routeTree.gen";
 
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
+import { Toaster } from "react-hot-toast";
 
 
 
@@ -39,6 +40,7 @@ if (rootElement && !rootElement.innerHTML) {
 		<StrictMode>
 			<TanStackQueryProvider.Provider>
 				<RouterProvider router={router} />
+				<Toaster position="bottom-right" />
 			</TanStackQueryProvider.Provider>
 		</StrictMode>,
 	);

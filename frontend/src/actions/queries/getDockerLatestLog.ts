@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getLatestLogDockerLogsLatestGetOptions } from "@/client/@tanstack/react-query.gen";
+import { getLatestLogOptions } from "@/client/@tanstack/react-query.gen";
 
 export function useGetDockerLatestLog() {
-	return useQuery(getLatestLogDockerLogsLatestGetOptions());
+	return useQuery(getLatestLogOptions());
 }

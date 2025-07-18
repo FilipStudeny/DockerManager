@@ -15,6 +15,7 @@ export interface DataTableProps<T> {
 	emptyMessage?: string,
 	isLoading?: boolean,
 	skeletonRows?: number,
+	onRowClick?: (row: T, index: number)=> void,
 }
 
 export function DataTable<T>({
@@ -24,6 +25,7 @@ export function DataTable<T>({
 	emptyMessage = "No data found.",
 	isLoading = false,
 	skeletonRows = 6,
+	onRowClick,
 }: DataTableProps<T>) {
 	const rowsToRender = isLoading ? Array.from({ length: skeletonRows }) : data;
 
@@ -46,36 +48,47 @@ export function DataTable<T>({
 					<tbody className="divide-y divide-neutral-200">
 						{!isLoading && data.length === 0 ? (
 							<tr>
-								<td colSpan={columns.length} className="px-6 py-8 text-center text-neutral-400">
+								<td
+									colSpan={columns.length}
+									className="px-6 py-8 text-center text-neutral-400"
+								>
 									{emptyMessage}
 								</td>
 							</tr>
 						) : (
-							rowsToRender.map((_, index) => (
-								<tr
-									key={
-										isLoading
-											? `skeleton-${index}`
-											: keyAccessor?.(data[index], index) ?? index
-									}
-									className="hover:bg-neutral-50 transition"
-								>
-									{columns.map((col, i) => (
-										<td
-											key={i}
-											className={`px-6 py-4 text-${col.align || "left"}`}
-										>
-											{isLoading ? (
-												<div className="h-4 bg-neutral-200 rounded w-3/4 animate-pulse"></div>
-											) : col.render ? (
-												col.render(data[index])
-											) : (
-												(data[index][col.accessor!] as React.ReactNode)
-											)}
-										</td>
-									))}
-								</tr>
-							))
+							rowsToRender.map((_, index) => {
+								const row = data[index];
+								const clickable = !!onRowClick && !isLoading;
+
+								return (
+									<tr
+										key={
+											isLoading
+												? `skeleton-${index}`
+												: keyAccessor?.(row, index) ?? index
+										}
+										className={`transition ${
+											clickable ? "hover:bg-neutral-50 cursor-pointer" : ""
+										}`}
+										onClick={() => clickable && onRowClick?.(row, index)}
+									>
+										{columns.map((col, i) => (
+											<td
+												key={i}
+												className={`px-6 py-4 text-${col.align || "left"}`}
+											>
+												{isLoading ? (
+													<div className="h-4 bg-neutral-200 rounded w-3/4 animate-pulse" />
+												) : col.render ? (
+													col.render(row)
+												) : col.accessor ? (
+													(row[col.accessor] as React.ReactNode)
+												) : null}
+											</td>
+										))}
+									</tr>
+								);
+							})
 						)}
 					</tbody>
 				</table>

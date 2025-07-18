@@ -154,6 +154,32 @@ export type ContainerDetails = {
 };
 
 /**
+ * ContainerNode
+ */
+export type ContainerNode = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Type
+     */
+    type: 'container';
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Clusterid
+     */
+    clusterId: string | null;
+};
+
+/**
  * ContainerStats
  */
 export type ContainerStats = {
@@ -272,6 +298,64 @@ export type DockerImageSummary = {
 };
 
 /**
+ * DockerNetworkGraphResponse
+ */
+export type DockerNetworkGraphResponse = {
+    /**
+     * Nodes
+     */
+    nodes: Array<ContainerNode | NetworkNode>;
+    /**
+     * Links
+     */
+    links: Array<Link>;
+};
+
+/**
+ * DockerNetworkOverview
+ */
+export type DockerNetworkOverview = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Driver
+     */
+    driver: string;
+    /**
+     * Scope
+     */
+    scope: string;
+    /**
+     * Containers Count
+     */
+    containers_count: number;
+    /**
+     * Running Containers Count
+     */
+    running_containers_count: number;
+    /**
+     * Labels
+     */
+    labels: {
+        [key: string]: string;
+    } | null;
+    /**
+     * Internal
+     */
+    internal: boolean;
+    /**
+     * Attachable
+     */
+    attachable: boolean;
+};
+
+/**
  * DockerOverview
  */
 export type DockerOverview = {
@@ -303,17 +387,6 @@ export type DockerOverview = {
      * Logs Count
      */
     logs_count: number;
-};
-
-/**
- * DockerStatus
- */
-export type DockerStatus = {
-    /**
-     * Status
-     * Docker daemon status message
-     */
-    status: string;
 };
 
 /**
@@ -401,6 +474,20 @@ export type HttpValidationError = {
 };
 
 /**
+ * Link
+ */
+export type Link = {
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Target
+     */
+    target: string;
+};
+
+/**
  * LogInfo
  */
 export type LogInfo = {
@@ -440,6 +527,24 @@ export type MountInfo = {
      * Mount type (e.g. 'bind', 'volume')
      */
     type?: string | null;
+};
+
+/**
+ * NetworkNode
+ */
+export type NetworkNode = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Type
+     */
+    type: 'network';
 };
 
 /**
@@ -491,104 +596,88 @@ export type ValidationError = {
     type: string;
 };
 
-export type RootGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/';
-};
-
-export type RootGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: DockerStatus;
-};
-
-export type RootGetResponse = RootGetResponses[keyof RootGetResponses];
-
-export type GetDockerOverviewDockerOverviewGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/docker/overview';
-};
-
-export type GetDockerOverviewDockerOverviewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: DockerOverview;
-};
-
-export type GetDockerOverviewDockerOverviewGetResponse = GetDockerOverviewDockerOverviewGetResponses[keyof GetDockerOverviewDockerOverviewGetResponses];
-
-export type GetTopContainersDockerTopContainersGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/docker/top-containers';
-};
-
-export type GetTopContainersDockerTopContainersGetResponses = {
-    /**
-     * Response Get Top Containers Docker Top Containers Get
-     * Successful Response
-     */
-    200: Array<ContainerStats>;
-};
-
-export type GetTopContainersDockerTopContainersGetResponse = GetTopContainersDockerTopContainersGetResponses[keyof GetTopContainersDockerTopContainersGetResponses];
-
-export type GetPerformanceWarningDockerPerformanceWarningGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/docker/performance-warning';
-};
-
-export type GetPerformanceWarningDockerPerformanceWarningGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: PerformanceWarning;
-};
-
-export type GetPerformanceWarningDockerPerformanceWarningGetResponse = GetPerformanceWarningDockerPerformanceWarningGetResponses[keyof GetPerformanceWarningDockerPerformanceWarningGetResponses];
-
-export type GetLatestLogDockerLogsLatestGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/docker/logs/latest';
-};
-
-export type GetLatestLogDockerLogsLatestGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: LogInfo;
-};
-
-export type GetLatestLogDockerLogsLatestGetResponse = GetLatestLogDockerLogsLatestGetResponses[keyof GetLatestLogDockerLogsLatestGetResponses];
-
-export type CheckDockerStatusDockerStatusGetData = {
+export type CheckDockerStatusData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/docker-status';
 };
 
-export type CheckDockerStatusDockerStatusGetResponses = {
+export type CheckDockerStatusResponses = {
     /**
      * Successful Response
      */
-    200: DockerStatus;
+    200: GenericMessageResponse;
 };
 
-export type CheckDockerStatusDockerStatusGetResponse = CheckDockerStatusDockerStatusGetResponses[keyof CheckDockerStatusDockerStatusGetResponses];
+export type CheckDockerStatusResponse = CheckDockerStatusResponses[keyof CheckDockerStatusResponses];
 
-export type ListContainersContainersGetData = {
+export type GetDockerOverviewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/overview';
+};
+
+export type GetDockerOverviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: DockerOverview;
+};
+
+export type GetDockerOverviewResponse = GetDockerOverviewResponses[keyof GetDockerOverviewResponses];
+
+export type GetTopContainersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/top-containers';
+};
+
+export type GetTopContainersResponses = {
+    /**
+     * Response Gettopcontainers
+     * Successful Response
+     */
+    200: Array<ContainerStats>;
+};
+
+export type GetTopContainersResponse = GetTopContainersResponses[keyof GetTopContainersResponses];
+
+export type GetPerformanceWarningData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/performance-warning';
+};
+
+export type GetPerformanceWarningResponses = {
+    /**
+     * Successful Response
+     */
+    200: PerformanceWarning;
+};
+
+export type GetPerformanceWarningResponse = GetPerformanceWarningResponses[keyof GetPerformanceWarningResponses];
+
+export type GetLatestLogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/logs/latest';
+};
+
+export type GetLatestLogResponses = {
+    /**
+     * Successful Response
+     */
+    200: LogInfo;
+};
+
+export type GetLatestLogResponse = GetLatestLogResponses[keyof GetLatestLogResponses];
+
+export type ListContainersData = {
     body?: never;
     path?: never;
     query?: {
@@ -601,26 +690,26 @@ export type ListContainersContainersGetData = {
     url: '/containers';
 };
 
-export type ListContainersContainersGetErrors = {
+export type ListContainersErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListContainersContainersGetError = ListContainersContainersGetErrors[keyof ListContainersContainersGetErrors];
+export type ListContainersError = ListContainersErrors[keyof ListContainersErrors];
 
-export type ListContainersContainersGetResponses = {
+export type ListContainersResponses = {
     /**
-     * Response List Containers Containers Get
+     * Response Listcontainers
      * Successful Response
      */
     200: Array<ContainerSummary>;
 };
 
-export type ListContainersContainersGetResponse = ListContainersContainersGetResponses[keyof ListContainersContainersGetResponses];
+export type ListContainersResponse = ListContainersResponses[keyof ListContainersResponses];
 
-export type GetContainerDetailsContainersContainerIdGetData = {
+export type GetContainerDetailsData = {
     body?: never;
     path: {
         /**
@@ -632,25 +721,25 @@ export type GetContainerDetailsContainersContainerIdGetData = {
     url: '/containers/{container_id}';
 };
 
-export type GetContainerDetailsContainersContainerIdGetErrors = {
+export type GetContainerDetailsErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetContainerDetailsContainersContainerIdGetError = GetContainerDetailsContainersContainerIdGetErrors[keyof GetContainerDetailsContainersContainerIdGetErrors];
+export type GetContainerDetailsError = GetContainerDetailsErrors[keyof GetContainerDetailsErrors];
 
-export type GetContainerDetailsContainersContainerIdGetResponses = {
+export type GetContainerDetailsResponses = {
     /**
      * Successful Response
      */
     200: ContainerDetails;
 };
 
-export type GetContainerDetailsContainersContainerIdGetResponse = GetContainerDetailsContainersContainerIdGetResponses[keyof GetContainerDetailsContainersContainerIdGetResponses];
+export type GetContainerDetailsResponse = GetContainerDetailsResponses[keyof GetContainerDetailsResponses];
 
-export type GetContainerLogsContainersContainerIdLogsGetData = {
+export type GetContainerLogsData = {
     body?: never;
     path: {
         /**
@@ -667,25 +756,25 @@ export type GetContainerLogsContainersContainerIdLogsGetData = {
     url: '/containers/{container_id}/logs';
 };
 
-export type GetContainerLogsContainersContainerIdLogsGetErrors = {
+export type GetContainerLogsErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetContainerLogsContainersContainerIdLogsGetError = GetContainerLogsContainersContainerIdLogsGetErrors[keyof GetContainerLogsContainersContainerIdLogsGetErrors];
+export type GetContainerLogsError = GetContainerLogsErrors[keyof GetContainerLogsErrors];
 
-export type GetContainerLogsContainersContainerIdLogsGetResponses = {
+export type GetContainerLogsResponses = {
     /**
      * Successful Response
      */
     200: string;
 };
 
-export type GetContainerLogsContainersContainerIdLogsGetResponse = GetContainerLogsContainersContainerIdLogsGetResponses[keyof GetContainerLogsContainersContainerIdLogsGetResponses];
+export type GetContainerLogsResponse = GetContainerLogsResponses[keyof GetContainerLogsResponses];
 
-export type StartContainerContainersContainerIdStartPostData = {
+export type StartContainerData = {
     body?: never;
     path: {
         /**
@@ -697,25 +786,25 @@ export type StartContainerContainersContainerIdStartPostData = {
     url: '/containers/{container_id}/start';
 };
 
-export type StartContainerContainersContainerIdStartPostErrors = {
+export type StartContainerErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type StartContainerContainersContainerIdStartPostError = StartContainerContainersContainerIdStartPostErrors[keyof StartContainerContainersContainerIdStartPostErrors];
+export type StartContainerError = StartContainerErrors[keyof StartContainerErrors];
 
-export type StartContainerContainersContainerIdStartPostResponses = {
+export type StartContainerResponses = {
     /**
      * Successful Response
      */
     200: GenericMessageResponse;
 };
 
-export type StartContainerContainersContainerIdStartPostResponse = StartContainerContainersContainerIdStartPostResponses[keyof StartContainerContainersContainerIdStartPostResponses];
+export type StartContainerResponse = StartContainerResponses[keyof StartContainerResponses];
 
-export type StopContainerContainersContainerIdStopPostData = {
+export type StopContainerData = {
     body?: never;
     path: {
         /**
@@ -727,25 +816,25 @@ export type StopContainerContainersContainerIdStopPostData = {
     url: '/containers/{container_id}/stop';
 };
 
-export type StopContainerContainersContainerIdStopPostErrors = {
+export type StopContainerErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type StopContainerContainersContainerIdStopPostError = StopContainerContainersContainerIdStopPostErrors[keyof StopContainerContainersContainerIdStopPostErrors];
+export type StopContainerError = StopContainerErrors[keyof StopContainerErrors];
 
-export type StopContainerContainersContainerIdStopPostResponses = {
+export type StopContainerResponses = {
     /**
      * Successful Response
      */
     200: GenericMessageResponse;
 };
 
-export type StopContainerContainersContainerIdStopPostResponse = StopContainerContainersContainerIdStopPostResponses[keyof StopContainerContainersContainerIdStopPostResponses];
+export type StopContainerResponse = StopContainerResponses[keyof StopContainerResponses];
 
-export type RestartContainerContainersContainerIdRestartPostData = {
+export type RestartContainerData = {
     body?: never;
     path: {
         /**
@@ -757,59 +846,59 @@ export type RestartContainerContainersContainerIdRestartPostData = {
     url: '/containers/{container_id}/restart';
 };
 
-export type RestartContainerContainersContainerIdRestartPostErrors = {
+export type RestartContainerErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RestartContainerContainersContainerIdRestartPostError = RestartContainerContainersContainerIdRestartPostErrors[keyof RestartContainerContainersContainerIdRestartPostErrors];
+export type RestartContainerError = RestartContainerErrors[keyof RestartContainerErrors];
 
-export type RestartContainerContainersContainerIdRestartPostResponses = {
+export type RestartContainerResponses = {
     /**
      * Successful Response
      */
     200: GenericMessageResponse;
 };
 
-export type RestartContainerContainersContainerIdRestartPostResponse = RestartContainerContainersContainerIdRestartPostResponses[keyof RestartContainerContainersContainerIdRestartPostResponses];
+export type RestartContainerResponse = RestartContainerResponses[keyof RestartContainerResponses];
 
-export type ListDockerImagesImagesGetData = {
+export type ListDockerImagesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/images';
 };
 
-export type ListDockerImagesImagesGetResponses = {
+export type ListDockerImagesResponses = {
     /**
-     * Response List Docker Images Images Get
+     * Response Listdockerimages
      * Successful Response
      */
     200: Array<DockerImageSummary>;
 };
 
-export type ListDockerImagesImagesGetResponse = ListDockerImagesImagesGetResponses[keyof ListDockerImagesImagesGetResponses];
+export type ListDockerImagesResponse = ListDockerImagesResponses[keyof ListDockerImagesResponses];
 
-export type ListDockerVolumesVolumesGetData = {
+export type ListDockerVolumesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/volumes';
 };
 
-export type ListDockerVolumesVolumesGetResponses = {
+export type ListDockerVolumesResponses = {
     /**
-     * Response List Docker Volumes Volumes Get
+     * Response Listdockervolumes
      * Successful Response
      */
     200: Array<DockerVolumeSummary>;
 };
 
-export type ListDockerVolumesVolumesGetResponse = ListDockerVolumesVolumesGetResponses[keyof ListDockerVolumesVolumesGetResponses];
+export type ListDockerVolumesResponse = ListDockerVolumesResponses[keyof ListDockerVolumesResponses];
 
-export type GetContainerVolumesContainersContainerIdVolumesGetData = {
+export type GetContainerVolumesData = {
     body?: never;
     path: {
         /**
@@ -821,24 +910,57 @@ export type GetContainerVolumesContainersContainerIdVolumesGetData = {
     url: '/containers/{container_id}/volumes';
 };
 
-export type GetContainerVolumesContainersContainerIdVolumesGetErrors = {
+export type GetContainerVolumesErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetContainerVolumesContainersContainerIdVolumesGetError = GetContainerVolumesContainersContainerIdVolumesGetErrors[keyof GetContainerVolumesContainersContainerIdVolumesGetErrors];
+export type GetContainerVolumesError = GetContainerVolumesErrors[keyof GetContainerVolumesErrors];
 
-export type GetContainerVolumesContainersContainerIdVolumesGetResponses = {
+export type GetContainerVolumesResponses = {
     /**
-     * Response Get Container Volumes Containers  Container Id  Volumes Get
+     * Response Getcontainervolumes
      * Successful Response
      */
     200: Array<DockerVolumeSummary>;
 };
 
-export type GetContainerVolumesContainersContainerIdVolumesGetResponse = GetContainerVolumesContainersContainerIdVolumesGetResponses[keyof GetContainerVolumesContainersContainerIdVolumesGetResponses];
+export type GetContainerVolumesResponse = GetContainerVolumesResponses[keyof GetContainerVolumesResponses];
+
+export type GetDockerNetworksOverviewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/networks/overview';
+};
+
+export type GetDockerNetworksOverviewResponses = {
+    /**
+     * Response Getdockernetworksoverview
+     * Successful Response
+     */
+    200: Array<DockerNetworkOverview>;
+};
+
+export type GetDockerNetworksOverviewResponse = GetDockerNetworksOverviewResponses[keyof GetDockerNetworksOverviewResponses];
+
+export type GetDockerNetworkMapData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/docker/networks/map';
+};
+
+export type GetDockerNetworkMapResponses = {
+    /**
+     * Successful Response
+     */
+    200: DockerNetworkGraphResponse;
+};
+
+export type GetDockerNetworkMapResponse = GetDockerNetworkMapResponses[keyof GetDockerNetworkMapResponses];
 
 export type ClientOptions = {
     baseURL: 'http://localhost:8000' | (string & {});

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import {
 	AlertTriangle,
 	Terminal,
@@ -10,14 +10,14 @@ import {
 } from "lucide-react";
 import { useState, type JSX } from "react";
 
-import { DashboardCard } from ".";
+import { DashboardCard } from "..";
 
 import type { ContainerStatusEnum, ContainerSummary } from "@/client";
 
 import { useGetContainersList } from "@/actions/queries/getContainersList";
 import { DataTable, type ColumnConfig } from "@/components/DataTable";
 
-export const Route = createFileRoute("/containers")({
+export const Route = createFileRoute("/containers/")({
 	component: ContainersPage,
 });
 
@@ -40,6 +40,7 @@ function ContainersPage() {
 	const [statusFilter, setStatusFilter] = useState<ContainerStatusEnum | "">("");
 
 	const { data: containersList, isLoading: isLoadingContainersList } = useGetContainersList();
+	const router = useRouter();
 
 	const filtered = containersList?.filter(
 		(c) =>
@@ -150,6 +151,7 @@ function ContainersPage() {
 					columns={columns}
 					keyAccessor={(row) => row.id}
 					isLoading={isLoadingContainersList}
+					onRowClick={(row) => router.navigate({ to: `/containers/${row.id}` })}
 				/>
 			</div>
 		</div>
