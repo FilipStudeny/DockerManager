@@ -1,4 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { format } from "date-fns";
 import {
 	AlertTriangle,
 	Play,
@@ -10,11 +11,15 @@ import {
 	Disc,
 	HardDrive,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+import { useRestartContainer } from "@/actions/commands/restartContainer";
+import { useStartContainer } from "@/actions/commands/startContainer";
+import { useStopContainer } from "@/actions/commands/stopContainer";
 import { useGetContainerDetails } from "@/actions/queries/getContainerDetails";
 import { useContainerStats } from "@/actions/queries/getContainerLiveStats";
+import { useInfiniteContainerLogs } from "@/actions/queries/getContainerLogs";
 import { LiveStatChart } from "@/components/LiveStatChart";
 import { LoadingPage } from "@/components/LoadinPage";
 
@@ -40,6 +45,19 @@ function ContainerDetailsPage() {
 		blockWrite,
 		uptime,
 	} = useContainerStats(id, isValidContainer);
+
+	const { mutate: startContainer, isPending: isStartingContainer } = useStartContainer(id);
+	const {
+		mutate: restartContainer,
+		isPending: isRestartingContainer,
+	} = useRestartContainer(id);
+
+	const {
+		mutate: stopContainer,
+		isPending: isStoppingContainer,
+	} = useStopContainer(id);
+	const isRunning = data?.status === "RUNNING";
+	const isAnyPending = isStartingContainer || isStoppingContainer || isRestartingContainer;
 
 	const extraStats = {
 		cpu_cores: perCpuData.at(-1)?.length ?? 0,
@@ -107,14 +125,84 @@ function ContainerDetailsPage() {
 					Container: {data.name}
 				</h1>
 				<div className="flex gap-2 flex-wrap">
-					<ActionButton icon={<Play size={16} />} label="Start" color="green" onClick={() => handleAction("start")} />
-					<ActionButton icon={<RotateCcw size={16} />} label="Restart" color="yellow" onClick={() => handleAction("restart")} />
-					<ActionButton icon={<StopCircle size={16} />} label="Stop" color="red" onClick={() => handleAction("stop")} />
+					<ActionButton
+						icon={<Play size={16} />}
+						label={isStartingContainer ? "Starting..." : "Start"}
+						color="green"
+						disabled={isAnyPending || isRunning}
+						onClick={() => {
+							toast.promise(
+								new Promise<void>((resolve, reject) => {
+									startContainer(undefined, {
+										onSuccess: () => {
+											refetch();
+											resolve();
+										},
+										onError: (err) => reject(err),
+									});
+								}),
+								{
+									loading: "Starting container...",
+									success: "Container started successfully",
+									error: "Failed to start container",
+								},
+							);
+						}}
+					/>
+					<ActionButton
+						icon={<RotateCcw size={16} />}
+						label={isRestartingContainer ? "Restarting..." : "Restart"}
+						color="yellow"
+						disabled={isAnyPending || !isRunning}
+						onClick={() => {
+							toast.promise(
+								new Promise<void>((resolve, reject) => {
+									restartContainer(undefined, {
+										onSuccess: () => {
+											refetch();
+											resolve();
+										},
+										onError: (err) => reject(err),
+									});
+								}),
+								{
+									loading: "Restarting container...",
+									success: "Container restarted",
+									error: "Failed to restart container",
+								},
+							);
+						}}
+					/>
+					<ActionButton
+						icon={<StopCircle size={16} />}
+						label={isStoppingContainer ? "Stopping..." : "Stop"}
+						color="red"
+						disabled={isAnyPending || !isRunning}
+						onClick={() => {
+							toast.promise(
+								new Promise<void>((resolve, reject) => {
+									stopContainer(undefined, {
+										onSuccess: () => {
+											refetch();
+											resolve();
+										},
+										onError: (err) => reject(err),
+									});
+								}),
+								{
+									loading: "Stopping container...",
+									success: "Container stopped",
+									error: "Failed to stop container",
+								},
+							);
+						}}
+					/>
 					<ActionButton
 						icon={<Trash2 size={16} />}
 						label={["Delete", "Confirm Delete", "Are you sure?"][confirmDeleteStage]}
 						color="red"
 						darker={confirmDeleteStage > 0}
+						disabled={isAnyPending}
 						onClick={() => handleAction("delete")}
 					/>
 				</div>
@@ -286,6 +374,10 @@ function ContainerDetailsPage() {
 				</DataSection>
 			)}
 
+			<DataSection title="Container Logs">
+				<ContainerLogsPanel containerId={id} />
+			</DataSection>
+
 			{/* Errors */}
 			{Boolean(data.error_count && data.error_count > 0) && (
 				<section className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
@@ -319,12 +411,14 @@ function ActionButton({
 	color,
 	onClick,
 	darker = false,
+	disabled = false,
 }: {
 	icon: React.ReactNode,
 	label: string,
 	color: "green" | "yellow" | "red",
 	onClick: ()=> void,
 	darker?: boolean,
+	disabled?: boolean,
 }) {
 	const base = {
 		green: "bg-green-500 hover:bg-green-600",
@@ -335,7 +429,9 @@ function ActionButton({
 	return (
 		<button
 			onClick={onClick}
-			className={`${base} text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition whitespace-nowrap`}
+			disabled={disabled}
+			className={`${base} text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition whitespace-nowrap 
+				${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
 		>
 			{icon}
 			{label}
@@ -343,7 +439,7 @@ function ActionButton({
 	);
 }
 
-function DataSection({ title, children, icon }: { title: string, children: React.ReactNode, icon?: React.ReactNode }) {
+export function DataSection({ title, children, icon }: { title: string, children: React.ReactNode, icon?: React.ReactNode }) {
 	return (
 		<section className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
 			<h2 className="text-base font-semibold mb-3 text-gray-800 flex items-center gap-2">
@@ -352,5 +448,108 @@ function DataSection({ title, children, icon }: { title: string, children: React
 			</h2>
 			{children}
 		</section>
+	);
+}
+
+export function ContainerLogsPanel({ containerId }: { containerId: string }) {
+	const [fromDate, setFromDate] = useState<number | undefined>();
+	const [toDate, setToDate] = useState<number | undefined>();
+
+	const {
+		data,
+		isLoading,
+		isError,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+		refetch,
+	} = useInfiniteContainerLogs(containerId, 100, fromDate, toDate);
+
+	const logs = useMemo(
+		() => data?.pages.flatMap((page) => page.logs) ?? [],
+		[data],
+	);
+
+	const handleDateFilter = (e: React.FormEvent) => {
+		e.preventDefault();
+		const form = e.target as HTMLFormElement;
+		const from = (form.elements.namedItem("from") as HTMLInputElement).value;
+		const to = (form.elements.namedItem("to") as HTMLInputElement).value;
+
+		setFromDate(from ? Math.floor(new Date(from).getTime() / 1000) : undefined);
+		setToDate(to ? Math.floor(new Date(to).getTime() / 1000) : undefined);
+	};
+
+	return (
+		<div className="flex flex-col gap-4">
+			{/* Header */}
+			<div className="flex flex-wrap justify-between gap-4 items-center">
+				<p className="text-sm text-gray-600">
+					{isLoading
+						? "Loading logs..."
+						: isError
+							? "Failed to load logs."
+							: `Showing ${logs.length} log lines`}
+				</p>
+				<form onSubmit={handleDateFilter} className="flex items-center gap-2 text-xs">
+					<input
+						type="datetime-local"
+						name="from"
+						className="border rounded px-2 py-1"
+						defaultValue={
+							fromDate ? format(new Date(fromDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
+						}
+					/>
+					<span>to</span>
+					<input
+						type="datetime-local"
+						name="to"
+						className="border rounded px-2 py-1"
+						defaultValue={
+							toDate ? format(new Date(toDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
+						}
+					/>
+					<button type="submit" className="text-blue-600 hover:underline">
+						Apply
+					</button>
+				</form>
+				<button
+					onClick={() => refetch()}
+					className="text-xs text-blue-600 hover:underline"
+					disabled={isLoading}
+				>
+					Refresh
+				</button>
+			</div>
+
+			{/* Logs Display */}
+			<div className="bg-black text-green-400 text-sm rounded-md p-3 overflow-auto max-h-[300px] font-mono border border-gray-700 space-y-1">
+				{isLoading && <p className="text-gray-400">Loading...</p>}
+				{isError && <p className="text-red-400">Error loading logs.</p>}
+				{!isLoading && logs.length === 0 && (
+					<p className="text-gray-500">No logs available.</p>
+				)}
+				{logs.map((log, idx) => (
+					<div key={idx} className="whitespace-pre-wrap">
+						<span className="text-gray-500 mr-2">{log.timestamp}</span>
+						{log.message}
+					</div>
+				))}
+				{isFetchingNextPage && <p className="text-gray-400">Loading more...</p>}
+			</div>
+
+			{/* Load More */}
+			{hasNextPage && (
+				<div className="flex justify-end">
+					<button
+						className="text-sm text-blue-600 hover:underline"
+						onClick={() => fetchNextPage()}
+						disabled={isFetchingNextPage}
+					>
+						{isFetchingNextPage ? "Loading..." : "Load more"}
+					</button>
+				</div>
+			)}
+		</div>
 	);
 }

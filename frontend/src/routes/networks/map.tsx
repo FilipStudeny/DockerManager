@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Network, RefreshCw } from "lucide-react";
+import { Network, RefreshCw, Layers } from "lucide-react";
 import { useRef, useMemo, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
+
+import { DataSection } from "../containers/$id";
+
+import type { ContainerNode } from "@/client";
 
 import { useGetNetworkMap } from "@/actions/queries/getNetworkMap";
 
@@ -22,7 +26,7 @@ function NetworkMapPage() {
 	const { data, isLoading } = useGetNetworkMap();
 	const fgRef = useRef<any>(null);
 	const [collapsedClusters, setCollapsedClusters] = useState<string[]>([]);
-	const hasZoomed = useRef(false);
+
 	const clusters = useMemo(() => {
 		if (!data) return [];
 
@@ -31,24 +35,36 @@ function NetworkMapPage() {
 			.map((n) => ({ id: n.id, label: n.label }));
 	}, [data]);
 
+	const toggleCluster = (clusterId: string) => {
+		setCollapsedClusters((prev) =>
+			prev.includes(clusterId)
+				? prev.filter((id) => id !== clusterId)
+				: [...prev, clusterId],
+		);
+	};
+
 	const graphData = useMemo(() => {
 		if (!data) return { nodes: [], links: [] };
 
-		const normalizedNodes = data.nodes.map((n) => {
-			if (n.type === "container" && n.clusterId === null) {
-				return { ...n, clusterId: undefined };
-			}
-
-			return n;
-		});
+		const normalizedNodes = data.nodes.map((n) =>
+			n.type === "container" && n.clusterId === null
+				? { ...n, clusterId: undefined }
+				: n,
+		);
 
 		const visibleNodes = normalizedNodes.filter(
 			(n) =>
-				!(n.type === "container" && collapsedClusters.includes(n.clusterId ?? "")),
+				!(
+					n.type === "container" &&
+					collapsedClusters.includes(n.clusterId ?? "")
+				),
 		);
+
 		const visibleLinks = data.links.filter((l) => {
-			const sourceId = typeof l.source === "object" ? (l.source as any).id : l.source;
-			const targetId = typeof l.target === "object" ? (l.target as any).id : l.target;
+			const sourceId =
+				typeof l.source === "object" ? (l.source as any).id : l.source;
+			const targetId =
+				typeof l.target === "object" ? (l.target as any).id : l.target;
 
 			const sourceNode = normalizedNodes.find((n) => n.id === sourceId);
 			const targetNode = normalizedNodes.find((n) => n.id === targetId);
@@ -65,106 +81,168 @@ function NetworkMapPage() {
 		return { nodes: visibleNodes, links: visibleLinks };
 	}, [data, collapsedClusters]);
 
-	const toggleCluster = (clusterId: string) => {
-		setCollapsedClusters((prev) =>
-			prev.includes(clusterId)
-				? prev.filter((id) => id !== clusterId)
-				: [...prev, clusterId],
-		);
-	};
-
 	const handleNodeClick = (node: Node) => {
 		if (node.type === "network") {
 			const wasCollapsed = collapsedClusters.includes(node.id);
 			toggleCluster(node.id);
 			if (wasCollapsed) return;
-
 		}
 	};
 
 	return (
-		<div className="flex flex-col h-screen bg-white">
+		<div className="flex flex-col h-screen text-gray-800">
 			{/* Header */}
-			<header className="px-6 py-4 border-b bg-white shadow-sm flex items-center justify-between">
-				<h1 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-					<Network className="w-6 h-6 text-blue-600" />
-					<span>Docker Network Map</span>
+			<header className="px-6 py-3 flex items-center justify-between">
+				<h1 className="text-lg font-semibold flex items-center gap-2 text-gray-800">
+					<Network className="w-5 h-5 text-blue-500" />
+					Docker Network Map
 				</h1>
 				<button
-					className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm shadow"
 					onClick={() => {
 						fgRef.current?.zoomToFit(600);
 						setCollapsedClusters([]);
 					}}
+					className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded shadow-sm"
 				>
 					<RefreshCw className="w-4 h-4" />
 					Reset View
 				</button>
 			</header>
 
-			{/* Main content area */}
-			<main className="flex flex-1 overflow-hidden">
+			<main className="flex flex-1 flex-col md:flex-row overflow-hidden">
 				{/* Sidebar */}
-				<aside className="w-60 border-r bg-gray-50 px-4 py-5 space-y-3 overflow-y-auto">
-					<p className="text-xs text-gray-600 font-medium tracking-wide mb-2">
-						Toggle Networks
-					</p>
-					{clusters.map((c) => (
-						<button
-							key={c.id}
-							onClick={() => toggleCluster(c.id)}
-							className={`w-full text-sm px-3 py-2 rounded flex items-center gap-2 transition-all font-medium ${
-								collapsedClusters.includes(c.id)
-									? "bg-gray-300 text-gray-700"
-									: "bg-green-500 hover:bg-green-600 text-white"
-							}`}
-						>
-							<Network className="w-4 h-4" />
-							{c.label}
-						</button>
-					))}
+				<aside className="w-full md:w-72 px-2 py-1 overflow-y-auto">
+					<DataSection
+						title="Networks"
+						icon={<Layers className="w-4 h-4 text-blue-500" />}
+					>
+						<div className="flex items-center justify-between mb-3">
+							<button
+								onClick={() => setCollapsedClusters(clusters.map((c) => c.id))}
+								className="text-xs text-blue-500 hover:underline"
+							>
+								Collapse All
+							</button>
+							<button
+								onClick={() => setCollapsedClusters([])}
+								className="text-xs text-blue-500 hover:underline"
+							>
+								Expand All
+							</button>
+						</div>
+
+						<div className="space-y-2">
+							{clusters.map((c) => {
+								const isCollapsed = collapsedClusters.includes(c.id);
+								const containerCount =
+						data?.nodes.filter(
+							(n): n is ContainerNode =>
+								n.type === "container" && n.clusterId === c.id,
+						).length ?? 0;
+
+								return (
+									<button
+										key={c.id}
+										onClick={() => toggleCluster(c.id)}
+										className={`w-full text-left flex justify-between items-center px-3 py-2 text-sm font-medium rounded-md border transition-all ${
+											isCollapsed
+												? "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+												: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+										}`}
+									>
+										<span>{c.label}</span>
+										<span className="text-xs font-semibold">{containerCount}</span>
+									</button>
+								);
+							})}
+						</div>
+					</DataSection>
 				</aside>
 
-				{/* Graph canvas */}
-				<section className="flex-1 relative">
-					{isLoading && (
-						<div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-							<p className="text-gray-600 text-sm">Loading network map...</p>
+				{/* Main Graph View */}
+				<section className="flex-1 px-2 overflow-hidden py-1 ">
+					<DataSection
+						title="Network Graph"
+						icon={<Network className="w-4 h-4 text-green-500" />}
+					>
+						<div className="relative w-full h-[60vh] md:h-[calc(100vh-180px)] overflow-hidden rounded border border-gray-200 bg-white">
+							{isLoading && (
+								<div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+									<p className="text-sm text-gray-700">Loading network map...</p>
+								</div>
+							)}
+
+							<ForceGraph2D
+								ref={fgRef}
+								graphData={graphData as any}
+								onNodeClick={handleNodeClick}
+								nodeLabel={(n: Node) =>
+									`${n.label}\nType: ${n.type}\nID: ${n.id}`
+								}
+								nodeCanvasObjectMode={() => "after"}
+								nodeCanvasObject={(node: Node, ctx, globalScale) => {
+									const fontSize = 14 / globalScale;
+									ctx.font = `500 ${fontSize}px Inter, sans-serif`;
+									ctx.fillStyle =
+							node.type === "container" ? "#3b82f6" : "#10b981";
+
+									ctx.beginPath();
+									if (node.type === "network") {
+										ctx.rect(node.x! - 7, node.y! - 7, 14, 14);
+									} else {
+										ctx.arc(node.x!, node.y!, 7, 0, 2 * Math.PI);
+									}
+
+									ctx.shadowColor = "rgba(0,0,0,0.2)";
+									ctx.shadowBlur = 3;
+									ctx.fill();
+
+									ctx.shadowBlur = 0;
+									ctx.fillStyle = "#374151";
+									ctx.fillText(node.label, node.x! + 10, node.y! + 4);
+
+									if (
+										node.type === "network" &&
+							collapsedClusters.includes(node.id)
+									) {
+										const count =
+								data?.nodes.filter(
+									(n): n is ContainerNode =>
+										n.type === "container" && n.clusterId === node.id,
+								).length ?? 0;
+
+										ctx.fillStyle = "#ef4444";
+										ctx.beginPath();
+										ctx.arc(node.x! + 20, node.y! - 10, 6, 0, 2 * Math.PI);
+										ctx.fill();
+
+										ctx.fillStyle = "#fff";
+										ctx.font = `bold ${10 / globalScale}px Inter`;
+										ctx.fillText(`${count}`, node.x! + 17, node.y! - 7);
+									}
+								}}
+								nodePointerAreaPaint={(node, color, ctx) => {
+									ctx.fillStyle = color;
+									if (node.type === "network") {
+										ctx.fillRect(node.x! - 7, node.y! - 7, 14, 14);
+									} else {
+										ctx.beginPath();
+										ctx.arc(node.x!, node.y!, 7, 0, 2 * Math.PI);
+										ctx.fill();
+									}
+								}}
+								linkColor={() => "rgba(120,120,120,0.25)"}
+								enableNodeDrag={false}
+								cooldownTicks={40}
+							/>
 						</div>
-					)}
-
-					<div className="absolute inset-0">
-						const hasZoomed = useRef(false);
-
-						...
-
-						<ForceGraph2D
-							ref={fgRef}
-							graphData={{ links: graphData.links, nodes: graphData.nodes as any }}
-							onNodeClick={handleNodeClick}
-							nodeLabel={(n: Node) => `${n.label} (${n.type})`}
-							nodeCanvasObjectMode={() => "after"}
-							nodeCanvasObject={(node: Node, ctx, globalScale) => {
-								const fontSize = 12 / globalScale;
-								ctx.font = `${fontSize}px sans-serif`;
-								ctx.fillStyle = node.type === "container" ? "#3b82f6" : "#10b981";
-								ctx.beginPath();
-								ctx.arc(node.x!, node.y!, 6, 0, 2 * Math.PI, false);
-								ctx.fill();
-								ctx.fillStyle = "#111";
-								ctx.fillText(node.label, node.x! + 8, node.y! + 4);
-							}}
-							linkColor={() => "rgba(120,120,120,0.6)"}
-							enableNodeDrag={false}
-							enableZoomInteraction={false}
-							enablePanInteraction={false}
-							cooldownTicks={40}
-						/>
-
-					</div>
-
+					</DataSection>
 				</section>
 			</main>
+
+			<footer className="px-6 py-2 text-xs text-gray-500 border-t border-gray-200 bg-white">
+				Showing {graphData.nodes.length} nodes and {graphData.links.length} links
+			</footer>
 		</div>
 	);
 }

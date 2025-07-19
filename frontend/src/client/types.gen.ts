@@ -154,6 +154,24 @@ export type ContainerDetails = {
 };
 
 /**
+ * ContainerLogsResponse
+ */
+export type ContainerLogsResponse = {
+    /**
+     * Logs
+     */
+    logs: Array<LogEntry>;
+    /**
+     * Next Since
+     */
+    next_since: number | null;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * ContainerNode
  */
 export type ContainerNode = {
@@ -343,7 +361,7 @@ export type DockerNetworkOverview = {
      * Labels
      */
     labels: {
-        [key: string]: string;
+        [key: string]: unknown;
     } | null;
     /**
      * Internal
@@ -353,6 +371,10 @@ export type DockerNetworkOverview = {
      * Attachable
      */
     attachable: boolean;
+    /**
+     * Containers
+     */
+    containers: Array<NetworkContainerInfo>;
 };
 
 /**
@@ -488,6 +510,20 @@ export type Link = {
 };
 
 /**
+ * LogEntry
+ */
+export type LogEntry = {
+    /**
+     * Timestamp
+     */
+    timestamp: string;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * LogInfo
  */
 export type LogInfo = {
@@ -527,6 +563,28 @@ export type MountInfo = {
      * Mount type (e.g. 'bind', 'volume')
      */
     type?: string | null;
+};
+
+/**
+ * NetworkContainerInfo
+ */
+export type NetworkContainerInfo = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Status
+     */
+    status: string | null;
+    /**
+     * Ipv4 Address
+     */
+    ipv4_address: string | null;
 };
 
 /**
@@ -752,6 +810,16 @@ export type GetContainerLogsData = {
          * Tail
          */
         tail?: number;
+        /**
+         * Since
+         * Unix timestamp to start from
+         */
+        since?: number | null;
+        /**
+         * Until
+         * Unix timestamp to end at
+         */
+        until?: number | null;
     };
     url: '/containers/{container_id}/logs';
 };
@@ -769,7 +837,7 @@ export type GetContainerLogsResponses = {
     /**
      * Successful Response
      */
-    200: string;
+    200: ContainerLogsResponse;
 };
 
 export type GetContainerLogsResponse = GetContainerLogsResponses[keyof GetContainerLogsResponses];

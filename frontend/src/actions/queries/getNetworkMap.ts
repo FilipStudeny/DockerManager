@@ -11,3 +11,4 @@ export function useGetNetworkMap() {
 		staleTime: Infinity,
 	});
 }
+

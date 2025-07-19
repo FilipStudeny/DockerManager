@@ -16,6 +16,7 @@ export interface DataTableProps<T> {
 	isLoading?: boolean,
 	skeletonRows?: number,
 	onRowClick?: (row: T, index: number)=> void,
+	selectedRow?: T | null,
 }
 
 export function DataTable<T>({
@@ -26,6 +27,7 @@ export function DataTable<T>({
 	isLoading = false,
 	skeletonRows = 6,
 	onRowClick,
+	selectedRow,
 }: DataTableProps<T>) {
 	const rowsToRender = isLoading ? Array.from({ length: skeletonRows }) : data;
 
@@ -60,6 +62,8 @@ export function DataTable<T>({
 								const row = data[index];
 								const clickable = !!onRowClick && !isLoading;
 
+								const isSelected = selectedRow === row;
+
 								return (
 									<tr
 										key={
@@ -69,6 +73,8 @@ export function DataTable<T>({
 										}
 										className={`transition ${
 											clickable ? "hover:bg-neutral-50 cursor-pointer" : ""
+										} ${
+											isSelected ? "bg-blue-50 border-l-4 border-blue-500" : ""
 										}`}
 										onClick={() => clickable && onRowClick?.(row, index)}
 									>

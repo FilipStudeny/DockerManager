@@ -23,7 +23,7 @@ def get_container_volumes_query(container_id: str) -> List[DockerVolumeSummary]:
                         used_volumes.append(DockerVolumeSummary(
                             name=volume.name,
                             type=mount.get("Type", ""),
-                            source=mount.get("Source", volume.name),  # fallback to volume name
+                            source=mount.get("Source", volume.name),
                             destination=mount.get("Destination", ""),
                             driver=volume.attrs.get("Driver", ""),
                             mountpoint=volume.attrs.get("Mountpoint", ""),

@@ -137,6 +137,13 @@ class PerformanceWarning(BaseModel):
     message: str
 
 
+class NetworkContainerInfo(BaseModel):
+    id: str
+    name: Optional[str]
+    status: Optional[str]
+    ipv4_address: Optional[str]
+
+
 class DockerNetworkOverview(BaseModel):
     id: str
     name: str
@@ -144,6 +151,18 @@ class DockerNetworkOverview(BaseModel):
     scope: str
     containers_count: int
     running_containers_count: int
-    labels: Optional[Dict[str, str]]
+    labels: Optional[dict]
     internal: bool
     attachable: bool
+    containers: List[NetworkContainerInfo]
+
+
+class LogEntry(BaseModel):
+    timestamp: str  # ISO 8601 string, e.g., "2023-07-19T12:34:56.123456Z"
+    message: str
+
+
+class ContainerLogsResponse(BaseModel):
+    logs: List[LogEntry]
+    next_since: Optional[int]  # Unix timestamp to use as `since` in next call
+    count: int

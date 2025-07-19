@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import traceback
-from typing import List
+from typing import List, Optional
 
 from docker.errors import DockerException
 from docker.models.containers import Container
@@ -15,7 +15,7 @@ from Models.models import (
     ContainerSummary,
     ContainerDetails,
     GenericMessageResponse, DockerImageSummary, DockerVolumeSummary, DockerOverview, ContainerStats, LogInfo,
-    PerformanceWarning, DockerNetworkOverview
+    PerformanceWarning, DockerNetworkOverview, NetworkContainerInfo, ContainerLogsResponse
 )
 from Routes.Commands.RestartContainer.restart_container_command import restart_container_command
 from Routes.Commands.StartContainer.start_container_command import start_container_command
@@ -42,6 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/docker-status", response_model=GenericMessageResponse, operation_id="checkDockerStatus")
 def check_docker_status() -> GenericMessageResponse:
     try:
@@ -50,7 +51,9 @@ def check_docker_status() -> GenericMessageResponse:
         return GenericMessageResponse(success=True, code=200, message="Docker is running")
     except Exception:
         logger.error("Docker status check failed:\n" + traceback.format_exc())
-        return GenericMessageResponse(success=False, code=503, message="Docker is not running or unreachable. Please check your Docker service.")
+        return GenericMessageResponse(success=False, code=503,
+                                      message="Docker is not running or unreachable. Please check your Docker service.")
+
 
 @app.get("/docker/overview", response_model=DockerOverview, operation_id="getDockerOverview")
 def get_docker_overview():
@@ -83,6 +86,7 @@ def get_docker_overview():
         logger.error("Docker connection error: %s", str(e))
         raise HTTPException(status_code=503, detail="Docker is not running or unreachable.")
 
+
 @app.get("/docker/top-containers", response_model=List[ContainerStats], operation_id="getTopContainers")
 def get_top_containers():
     try:
@@ -94,21 +98,26 @@ def get_top_containers():
         logger.error("Docker connection error: %s", str(e))
         raise HTTPException(status_code=503, detail="Docker is not running or unreachable.")
 
+
 @app.get("/docker/performance-warning", response_model=PerformanceWarning, operation_id="getPerformanceWarning")
 def get_performance_warning():
     return PerformanceWarning(message="High CPU usage detected in container 'db'")
+
 
 @app.get("/docker/logs/latest", response_model=LogInfo, operation_id="getLatestLog")
 def get_latest_log():
     return LogInfo(count=157, latest="Container 'web-app' restarted due to exit code 137.")
 
+
 @app.get("/containers", response_model=List[ContainerSummary], operation_id="listContainers")
 def list_containers(all: bool = Query(True, description="Show all containers, including stopped")):
     return get_containers_list_query(all)
 
+
 @app.get("/containers/{container_id}", response_model=ContainerDetails, operation_id="getContainerDetails")
 def get_container_details(container_id: str):
     return get_container_details_query(container_id)
+
 
 @app.websocket("/ws/containers/{container_id}/stats")
 async def stream_container_stats(websocket: WebSocket, container_id: str):
@@ -171,62 +180,108 @@ async def stream_container_stats(websocket: WebSocket, container_id: str):
         except RuntimeError:
             pass
 
-@app.get("/containers/{container_id}/logs", response_class=PlainTextResponse, operation_id="getContainerLogs")
-def get_container_logs(container_id: str, tail: int = 100) -> str:
-    return get_container_logs_query(container_id, tail)
+
+@app.get(
+    "/containers/{container_id}/logs",
+    response_model=ContainerLogsResponse,
+    operation_id="getContainerLogs"
+)
+def get_container_logs(
+	container_id: str,
+	tail: int = 500,
+	since: Optional[int] = Query(None, description="Unix timestamp to start from"),
+	until: Optional[int] = Query(None, description="Unix timestamp to end at"),
+) -> ContainerLogsResponse:
+	return get_container_logs_query(container_id, tail=tail, since=since, until=until)
+
 
 @app.post("/containers/{container_id}/start", response_model=GenericMessageResponse, operation_id="startContainer")
 def start_container(container_id: str):
     return start_container_command(container_id)
 
+
 @app.post("/containers/{container_id}/stop", response_model=GenericMessageResponse, operation_id="stopContainer")
 def stop_container(container_id: str):
     return stop_container_command(container_id)
+
 
 @app.post("/containers/{container_id}/restart", response_model=GenericMessageResponse, operation_id="restartContainer")
 def restart_container(container_id: str):
     return restart_container_command(container_id)
 
+
 @app.get("/images", response_model=List[DockerImageSummary], operation_id="listDockerImages")
 def list_docker_images():
     return get_docker_images_query()
+
 
 @app.get("/volumes", response_model=List[DockerVolumeSummary], operation_id="listDockerVolumes")
 def list_docker_volumes():
     return get_docker_volumes_query()
 
-@app.get("/containers/{container_id}/volumes", response_model=List[DockerVolumeSummary], operation_id="getContainerVolumes")
+
+@app.get("/containers/{container_id}/volumes", response_model=List[DockerVolumeSummary],
+         operation_id="getContainerVolumes")
 def get_container_volumes(container_id: str):
     return get_container_volumes_query(container_id)
 
-@app.get("/docker/networks/overview", response_model=List[DockerNetworkOverview], operation_id="getDockerNetworksOverview")
+
+@app.get(
+    "/docker/networks/overview",
+    response_model=List[DockerNetworkOverview],
+    operation_id="getDockerNetworksOverview"
+)
 def get_docker_networks_overview():
     try:
         client = get_docker_client()
         networks = client.networks.list()
-        containers_by_id = {c.id: c for c in client.containers.list(all=True)}
-        overview = []
-        for net in networks:
-            net_info = net.attrs
-            connected_containers = net_info.get("Containers", {}) or {}
-            container_ids = list(connected_containers.keys())
-            total = len(container_ids)
-            running = sum(1 for cid in container_ids if cid in containers_by_id and containers_by_id[cid].status == "running")
-            overview.append(DockerNetworkOverview(
-                id=net.id,
-                name=net.name,
-                driver=net_info.get("Driver", "unknown"),
-                scope=net_info.get("Scope", "unknown"),
-                containers_count=total,
-                running_containers_count=running,
-                labels=net_info.get("Labels"),
-                internal=net_info.get("Internal", False),
-                attachable=net_info.get("Attachable", False),
-            ))
-        return overview
+        containers = client.containers.list(all=True)
+
+        network_map = {net.id: net for net in networks}
+        network_overview = {
+            net.id: {
+                "id": net.id,
+                "name": net.name,
+                "driver": net.attrs.get("Driver", "unknown"),
+                "scope": net.attrs.get("Scope", "unknown"),
+                "labels": net.attrs.get("Labels"),
+                "internal": net.attrs.get("Internal", False),
+                "attachable": net.attrs.get("Attachable", False),
+                "containers": [],
+            }
+            for net in networks
+        }
+
+        for container in containers:
+            container_info = container.attrs
+            networks_info = container_info.get("NetworkSettings", {}).get("Networks", {})
+
+            for net_name, net_data in networks_info.items():
+                # match by name, not id, because Networks in container attrs are keyed by name
+                for net in networks:
+                    if net.name == net_name:
+                        network_overview[net.id]["containers"].append(NetworkContainerInfo(
+                            id=container.id,
+                            name=container.name,
+                            status=container.status,
+                            ipv4_address=net_data.get("IPAddress"),
+                        ))
+
+        # Finalize counts
+        results = []
+        for net_id, net_data in network_overview.items():
+            containers = net_data["containers"]
+            net_data["containers_count"] = len(containers)
+            net_data["running_containers_count"] = sum(1 for c in containers if c.status == "running")
+            results.append(DockerNetworkOverview(**net_data))
+
+        return results
+
     except DockerException as e:
-        logger.error(f"Failed to fetch networks: {str(e)}")
+        logger.error(f"Failed to fetch Docker networks: {str(e)}")
         raise HTTPException(status_code=503, detail="Docker is unreachable")
+
+
 @app.get("/docker/networks/map", response_model=DockerNetworkGraphResponse, operation_id="getDockerNetworkMap")
 def get_docker_network_node_map():
     return get_docker_network_map()

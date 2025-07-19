@@ -100,7 +100,7 @@ export const getContainerDetails = <ThrowOnError extends boolean = false>(option
  */
 export const getContainerLogs = <ThrowOnError extends boolean = false>(options: Options<GetContainerLogsData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<GetContainerLogsResponses, GetContainerLogsErrors, ThrowOnError>({
-        responseType: 'text',
+        responseType: 'json',
         url: '/containers/{container_id}/logs',
         ...options
     });

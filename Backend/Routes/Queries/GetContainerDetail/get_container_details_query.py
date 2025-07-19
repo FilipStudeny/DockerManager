@@ -26,7 +26,6 @@ def get_container_details_query(container_id: str) -> ContainerDetails:
 
         attrs = container.attrs
 
-        # Safe parsing
         config = attrs.get("Config", {})
         host_config = attrs.get("HostConfig", {})
         state = attrs.get("State", {})
