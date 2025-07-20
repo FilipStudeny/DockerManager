@@ -86,7 +86,7 @@ export function SidebarLayout() {
 	);
 }
 
-function NavItem({
+export function NavItem({
 	to,
 	icon,
 	children,

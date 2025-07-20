@@ -9,25 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VolumesRouteImport } from './routes/volumes'
-import { Route as ImagesRouteImport } from './routes/images'
 import { Route as DockerErrorRouteImport } from './routes/docker-error'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VolumesIndexRouteImport } from './routes/volumes/index'
 import { Route as NetworksIndexRouteImport } from './routes/networks/index'
+import { Route as ImagesIndexRouteImport } from './routes/images/index'
 import { Route as ContainersIndexRouteImport } from './routes/containers/index'
+import { Route as VolumesCreateRouteImport } from './routes/volumes/create'
 import { Route as NetworksMapRouteImport } from './routes/networks/map'
+import { Route as ImagesPullRouteImport } from './routes/images/pull'
+import { Route as ContainersCreateRouteImport } from './routes/containers/create'
 import { Route as ContainersIdRouteImport } from './routes/containers/$id'
 
-const VolumesRoute = VolumesRouteImport.update({
-  id: '/volumes',
-  path: '/volumes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImagesRoute = ImagesRouteImport.update({
-  id: '/images',
-  path: '/images',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DockerErrorRoute = DockerErrorRouteImport.update({
   id: '/docker-error',
   path: '/docker-error',
@@ -38,9 +31,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VolumesIndexRoute = VolumesIndexRouteImport.update({
+  id: '/volumes/',
+  path: '/volumes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NetworksIndexRoute = NetworksIndexRouteImport.update({
   id: '/networks/',
   path: '/networks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImagesIndexRoute = ImagesIndexRouteImport.update({
+  id: '/images/',
+  path: '/images/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContainersIndexRoute = ContainersIndexRouteImport.update({
@@ -48,9 +51,24 @@ const ContainersIndexRoute = ContainersIndexRouteImport.update({
   path: '/containers/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VolumesCreateRoute = VolumesCreateRouteImport.update({
+  id: '/volumes/create',
+  path: '/volumes/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NetworksMapRoute = NetworksMapRouteImport.update({
   id: '/networks/map',
   path: '/networks/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImagesPullRoute = ImagesPullRouteImport.update({
+  id: '/images/pull',
+  path: '/images/pull',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContainersCreateRoute = ContainersCreateRouteImport.update({
+  id: '/containers/create',
+  path: '/containers/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContainersIdRoute = ContainersIdRouteImport.update({
@@ -62,94 +80,101 @@ const ContainersIdRoute = ContainersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docker-error': typeof DockerErrorRoute
-  '/images': typeof ImagesRoute
-  '/volumes': typeof VolumesRoute
   '/containers/$id': typeof ContainersIdRoute
+  '/containers/create': typeof ContainersCreateRoute
+  '/images/pull': typeof ImagesPullRoute
   '/networks/map': typeof NetworksMapRoute
+  '/volumes/create': typeof VolumesCreateRoute
   '/containers': typeof ContainersIndexRoute
+  '/images': typeof ImagesIndexRoute
   '/networks': typeof NetworksIndexRoute
+  '/volumes': typeof VolumesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docker-error': typeof DockerErrorRoute
-  '/images': typeof ImagesRoute
-  '/volumes': typeof VolumesRoute
   '/containers/$id': typeof ContainersIdRoute
+  '/containers/create': typeof ContainersCreateRoute
+  '/images/pull': typeof ImagesPullRoute
   '/networks/map': typeof NetworksMapRoute
+  '/volumes/create': typeof VolumesCreateRoute
   '/containers': typeof ContainersIndexRoute
+  '/images': typeof ImagesIndexRoute
   '/networks': typeof NetworksIndexRoute
+  '/volumes': typeof VolumesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docker-error': typeof DockerErrorRoute
-  '/images': typeof ImagesRoute
-  '/volumes': typeof VolumesRoute
   '/containers/$id': typeof ContainersIdRoute
+  '/containers/create': typeof ContainersCreateRoute
+  '/images/pull': typeof ImagesPullRoute
   '/networks/map': typeof NetworksMapRoute
+  '/volumes/create': typeof VolumesCreateRoute
   '/containers/': typeof ContainersIndexRoute
+  '/images/': typeof ImagesIndexRoute
   '/networks/': typeof NetworksIndexRoute
+  '/volumes/': typeof VolumesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/docker-error'
-    | '/images'
-    | '/volumes'
     | '/containers/$id'
+    | '/containers/create'
+    | '/images/pull'
     | '/networks/map'
+    | '/volumes/create'
     | '/containers'
+    | '/images'
     | '/networks'
+    | '/volumes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/docker-error'
-    | '/images'
-    | '/volumes'
     | '/containers/$id'
+    | '/containers/create'
+    | '/images/pull'
     | '/networks/map'
+    | '/volumes/create'
     | '/containers'
+    | '/images'
     | '/networks'
+    | '/volumes'
   id:
     | '__root__'
     | '/'
     | '/docker-error'
-    | '/images'
-    | '/volumes'
     | '/containers/$id'
+    | '/containers/create'
+    | '/images/pull'
     | '/networks/map'
+    | '/volumes/create'
     | '/containers/'
+    | '/images/'
     | '/networks/'
+    | '/volumes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DockerErrorRoute: typeof DockerErrorRoute
-  ImagesRoute: typeof ImagesRoute
-  VolumesRoute: typeof VolumesRoute
   ContainersIdRoute: typeof ContainersIdRoute
+  ContainersCreateRoute: typeof ContainersCreateRoute
+  ImagesPullRoute: typeof ImagesPullRoute
   NetworksMapRoute: typeof NetworksMapRoute
+  VolumesCreateRoute: typeof VolumesCreateRoute
   ContainersIndexRoute: typeof ContainersIndexRoute
+  ImagesIndexRoute: typeof ImagesIndexRoute
   NetworksIndexRoute: typeof NetworksIndexRoute
+  VolumesIndexRoute: typeof VolumesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/volumes': {
-      id: '/volumes'
-      path: '/volumes'
-      fullPath: '/volumes'
-      preLoaderRoute: typeof VolumesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/images': {
-      id: '/images'
-      path: '/images'
-      fullPath: '/images'
-      preLoaderRoute: typeof ImagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/docker-error': {
       id: '/docker-error'
       path: '/docker-error'
@@ -164,11 +189,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/volumes/': {
+      id: '/volumes/'
+      path: '/volumes'
+      fullPath: '/volumes'
+      preLoaderRoute: typeof VolumesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/networks/': {
       id: '/networks/'
       path: '/networks'
       fullPath: '/networks'
       preLoaderRoute: typeof NetworksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/images/': {
+      id: '/images/'
+      path: '/images'
+      fullPath: '/images'
+      preLoaderRoute: typeof ImagesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/containers/': {
@@ -178,11 +217,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContainersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/volumes/create': {
+      id: '/volumes/create'
+      path: '/volumes/create'
+      fullPath: '/volumes/create'
+      preLoaderRoute: typeof VolumesCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/networks/map': {
       id: '/networks/map'
       path: '/networks/map'
       fullPath: '/networks/map'
       preLoaderRoute: typeof NetworksMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/images/pull': {
+      id: '/images/pull'
+      path: '/images/pull'
+      fullPath: '/images/pull'
+      preLoaderRoute: typeof ImagesPullRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/containers/create': {
+      id: '/containers/create'
+      path: '/containers/create'
+      fullPath: '/containers/create'
+      preLoaderRoute: typeof ContainersCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/containers/$id': {
@@ -198,12 +258,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DockerErrorRoute: DockerErrorRoute,
-  ImagesRoute: ImagesRoute,
-  VolumesRoute: VolumesRoute,
   ContainersIdRoute: ContainersIdRoute,
+  ContainersCreateRoute: ContainersCreateRoute,
+  ImagesPullRoute: ImagesPullRoute,
   NetworksMapRoute: NetworksMapRoute,
+  VolumesCreateRoute: VolumesCreateRoute,
   ContainersIndexRoute: ContainersIndexRoute,
+  ImagesIndexRoute: ImagesIndexRoute,
   NetworksIndexRoute: NetworksIndexRoute,
+  VolumesIndexRoute: VolumesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

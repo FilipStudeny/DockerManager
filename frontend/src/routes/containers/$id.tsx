@@ -10,16 +10,21 @@ import {
 	Network,
 	Disc,
 	HardDrive,
+	HardDriveIcon,
+	LinkIcon,
+	PlusCircleIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+import { useAttachVolumeToContainer } from "@/actions/commands/addVolumeToContainer";
 import { useRestartContainer } from "@/actions/commands/restartContainer";
 import { useStartContainer } from "@/actions/commands/startContainer";
 import { useStopContainer } from "@/actions/commands/stopContainer";
 import { useGetContainerDetails } from "@/actions/queries/getContainerDetails";
 import { useContainerStats } from "@/actions/queries/getContainerLiveStats";
 import { useInfiniteContainerLogs } from "@/actions/queries/getContainerLogs";
+import { useGetVolumesSelectList } from "@/actions/queries/getVolumesSelectList";
 import { LiveStatChart } from "@/components/LiveStatChart";
 import { LoadingPage } from "@/components/LoadinPage";
 
@@ -56,6 +61,7 @@ function ContainerDetailsPage() {
 		mutate: stopContainer,
 		isPending: isStoppingContainer,
 	} = useStopContainer(id);
+
 	const isRunning = data?.status === "RUNNING";
 	const isAnyPending = isStartingContainer || isStoppingContainer || isRestartingContainer;
 
@@ -287,33 +293,11 @@ function ContainerDetailsPage() {
 				</DataSection>
 			)}
 			{(data?.mounts?.length ?? 0) > 0 && (
-				<DataSection title="Mounts">
-					<div className="space-y-3">
-						{data.mounts!.map((m, i) => (
-							<div
-								key={i}
-								className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm"
-							>
-								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-									<div className="text-sm font-medium text-gray-800">
-										{m.destination}
-									</div>
-									<span className="text-xs bg-gray-100 text-gray-600 rounded px-2 py-0.5 border border-gray-200 w-fit">
-										{m.type ?? "unknown"}
-									</span>
-								</div>
-								<div className="text-xs text-gray-600 mt-1 break-all">
-									<span className="font-semibold">Source:</span>{" "}
-									{m.source ?? "—"}
-								</div>
-								<div className="text-xs text-gray-600 break-all">
-									<span className="font-semibold">Mode:</span>{" "}
-									{m.mode ?? "—"}
-								</div>
-							</div>
-						))}
-					</div>
-				</DataSection>
+				<ContainerVolumesPanel
+					mounts={data.mounts}
+					containerId={id}
+					onVolumeAttached={() => refetch()}
+				/>
 			)}
 
 			{isValidContainer && perCpuData.length > 0 && (
@@ -551,5 +535,130 @@ export function ContainerLogsPanel({ containerId }: { containerId: string }) {
 				</div>
 			)}
 		</div>
+	);
+}
+
+interface Props {
+	mounts: any,
+	containerId: string,
+	onVolumeAttached?: ()=> void,
+}
+export function ContainerVolumesPanel({ mounts, containerId, onVolumeAttached }: Props) {
+	const { data: volumeList } = useGetVolumesSelectList();
+	const [selectedVolume, setSelectedVolume] = useState<string | null>(null);
+	const [mountPath, setMountPath] = useState("");
+	const [isAddingVolume, setIsAddingVolume] = useState(false);
+	const { mutate: attachVolume, isPending: isAttaching } = useAttachVolumeToContainer(containerId);
+	const handleAddVolume = () => {
+		if (!selectedVolume || !mountPath) return;
+
+		attachVolume(
+			{
+				volume_name: selectedVolume,
+				mount_path: mountPath,
+				read_only: false,
+			},
+			{
+				onSuccess: (response) => {
+					toast.success(response.message || "Volume attached");
+					onVolumeAttached?.();
+					setIsAddingVolume(false);
+					setSelectedVolume(null);
+					setMountPath("");
+				},
+				onError: (error) => {
+					toast.error(error.message || "Failed to attach volume");
+				},
+			},
+		);
+	};
+
+	return (
+		<DataSection title="Mounts" icon={<HardDriveIcon className="w-5 h-5" />}>
+			<div className="grid gap-4 sm:grid-cols-2">
+				{mounts?.map((m, i) => (
+					<div key={i} className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+						<div className="flex items-center gap-2 font-medium text-blue-600">
+							<HardDriveIcon className="w-4 h-4" />
+							{m.destination || <span className="text-gray-400 italic">Unknown destination</span>}
+						</div>
+						<div className="text-sm text-gray-600 truncate mt-1">
+							<span className="font-semibold">Source:</span>{" "}
+							{m.source || <span className="italic text-gray-400">Not available</span>}
+						</div>
+						<div className="flex justify-between text-xs text-gray-500 mt-2">
+							<span><span className="font-semibold">Type:</span> {m.type ?? "—"}</span>
+							<span><span className="font-semibold">Mode:</span> {m.mode ?? "—"}</span>
+						</div>
+					</div>
+				))}
+			</div>
+
+			<div className="mt-6">
+				{isAddingVolume ? (
+					<div className="mt-4 border border-gray-200 rounded-xl bg-gray-50 p-5 shadow-sm">
+						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+							<div className="flex flex-col">
+								<label className="text-sm font-medium text-gray-700 mb-1">Volume</label>
+								<select
+									value={selectedVolume ?? ""}
+									onChange={(e) => setSelectedVolume(e.target.value)}
+									className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+								>
+									<option value="">Select a volume</option>
+									{volumeList?.volumes.map((v) => (
+										<option key={v.id} value={v.name}>{v.name}</option>
+									))}
+								</select>
+							</div>
+
+							<div className="flex flex-col">
+								<label className="text-sm font-medium text-gray-700 mb-1">Mount Path</label>
+								<input
+									type="text"
+									placeholder="/path/in/container"
+									value={mountPath}
+									onChange={(e) => setMountPath(e.target.value)}
+									className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+								/>
+							</div>
+
+						</div>
+
+						<div className="flex justify-end gap-3 mt-5">
+							<button
+								onClick={() => setIsAddingVolume(false)}
+								className="text-gray-500 hover:text-gray-700 text-sm"
+							>
+								Cancel
+							</button>
+							<button
+								onClick={handleAddVolume}
+								disabled={isAttaching}
+								className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2 ${isAttaching ? "opacity-50 cursor-not-allowed" : ""}`}
+							>
+								{isAttaching ? (
+									<span className="animate-pulse">Attaching...</span>
+								) : (
+									<>
+										<LinkIcon className="w-4 h-4" />
+										Attach Volume
+									</>
+								)}
+							</button>
+
+						</div>
+					</div>
+				) : (
+					<button
+						onClick={() => setIsAddingVolume(true)}
+						className="mt-5 inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
+					>
+						<PlusCircleIcon className="w-4 h-4" />
+						Add Volume
+					</button>
+				)}
+			</div>
+		</DataSection>
 	);
 }

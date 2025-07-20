@@ -1,59 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-import { DataTable, type ColumnConfig } from "@/components/DataTable";
+import type { DockerVolumeSummary } from "@/client";
 
-export const Route = createFileRoute("/volumes")({
+import { useGetDockerVolumes } from "@/actions/queries/getDockerVolumes";
+import { DataTable, type ColumnConfig } from "@/components/DataTable";
+import { NavItem } from "@/components/NavBar";
+
+export const Route = createFileRoute("/volumes/")({
 	component: VolumesPage,
 });
-
-interface DockerVolumeSummary {
-	name?: string,
-	type: string,
-	source: string,
-	destination: string,
-	driver?: string,
-	mountpoint?: string,
-	created_at?: string,
-	size?: string,
-	labels: Record<string, string>,
-}
-
-const mockVolumes: DockerVolumeSummary[] = [
-	{
-		name: "app-data",
-		type: "volume",
-		source: "app-data",
-		destination: "/app/data",
-		driver: "local",
-		mountpoint: "/var/lib/docker/volumes/app-data/_data",
-		created_at: "2025-07-17T08:00:00Z",
-		size: "120MB",
-		labels: { app: "web" },
-	},
-	{
-		name: "db-storage",
-		type: "volume",
-		source: "db-storage",
-		destination: "/var/lib/postgresql/data",
-		driver: "local",
-		mountpoint: "/var/lib/docker/volumes/db-storage/_data",
-		created_at: "2025-07-16T12:00:00Z",
-		size: "950MB",
-		labels: { db: "postgres" },
-	},
-	{
-		name: undefined,
-		type: "bind",
-		source: "/host/tmp",
-		destination: "/container/tmp",
-		driver: undefined,
-		mountpoint: undefined,
-		created_at: undefined,
-		size: undefined,
-		labels: {},
-	},
-];
 
 const columns: ColumnConfig<DockerVolumeSummary>[] = [
 	{ label: "Name", render: (v) => v.name || "—" },
@@ -65,7 +22,7 @@ const columns: ColumnConfig<DockerVolumeSummary>[] = [
 	{
 		label: "Labels",
 		render: (v) =>
-			Object.keys(v.labels).length > 0
+			v.labels && Object.keys(v.labels).length > 0
 				? Object.entries(v.labels)
 					.map(([k, val]) => `${k}=${val}`)
 					.join(", ")
@@ -74,15 +31,26 @@ const columns: ColumnConfig<DockerVolumeSummary>[] = [
 ];
 
 function VolumesPage() {
+	const { data: volumes, isLoading } = useGetDockerVolumes();
 	const [search, setSearch] = useState("");
-	const filtered = mockVolumes.filter((v) =>
-		(v.name || v.source).toLowerCase().includes(search.toLowerCase()),
-	);
+
+	const filtered = volumes?.filter((v) =>
+		`${v.name ?? ""} ${v.source ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+	) ?? [];
 
 	return (
 		<div className="p-6 space-y-10 bg-neutral-50 min-h-screen">
-			<h1 className="text-3xl font-bold text-neutral-900">Docker Volumes</h1>
+			<div className="flex items-center justify-between">
+				<h1 className="text-3xl font-bold text-neutral-900">Docker Volumes</h1>
 
+				<NavItem
+					to="/volumes/create"
+					icon={<PlusIcon size={16} />}
+					className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg"
+				>
+					Create volume
+				</NavItem>
+			</div>
 			<div className="rounded-2xl overflow-hidden shadow border border-neutral-200 bg-white">
 				<div className="bg-gray-900 border-b border-neutral-700 px-6 py-4">
 					<input
@@ -97,7 +65,9 @@ function VolumesPage() {
 				<DataTable
 					data={filtered}
 					columns={columns}
-					keyAccessor={(row, index) => row.name || index}				/>
+					keyAccessor={(row, index) => row.name || index}
+					isLoading={isLoading}
+				/>
 			</div>
 		</div>
 	);

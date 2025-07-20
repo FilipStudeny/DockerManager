@@ -166,3 +166,36 @@ class ContainerLogsResponse(BaseModel):
     logs: List[LogEntry]
     next_since: Optional[int]  # Unix timestamp to use as `since` in next call
     count: int
+
+
+class PullImageRequest(BaseModel):
+    repository: str  # e.g. "nginx" or "redis"
+    tag: str = "latest"  # optional, defaults to "latest"
+
+
+class CreateVolumeRequest(BaseModel):
+    name: str = Field(..., description="The name of the Docker volume to create.")
+    driver: Optional[str] = Field(default="local", description="The volume driver to use.")
+    labels: Optional[Dict[str, str]] = Field(default=None, description="Labels to apply to the volume.")
+    driver_opts: Optional[Dict[str, str]] = Field(default=None, description="Driver-specific options.")
+
+
+class CreatedVolumeResponse(BaseModel):
+    name: str
+    driver: str
+    mountpoint: str
+    created_at: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+    options: Optional[Dict[str, str]] = None
+
+class VolumeSelectListItem(BaseModel):
+    id: str
+    name: str
+
+class VolumeSelectList(BaseModel):
+    volumes: List[VolumeSelectListItem]
+
+class AttachVolumeRequest(BaseModel):
+    volume_name: str
+    mount_path: str
+    read_only: bool = False
