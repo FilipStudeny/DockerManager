@@ -1,10 +1,11 @@
+import docker
 from fastapi import HTTPException
 from typing import Dict, Any
 
 from Models.models import (
     ContainerDetails,
     MountInfo,
-    map_status_to_enum,
+    map_status_to_enum, NetworkInfo,
 )
 
 from Routes.Queries.GetConainersList.get_containers_list_query import enrich_container_summary
@@ -33,8 +34,7 @@ def get_container_details_query(container_id: str) -> ContainerDetails:
 
         return ContainerDetails(
             **base_summary.model_dump(),
-            ip_address=_extract_ip_address(network_settings),
-            network_mode=host_config.get("NetworkMode", "unknown"),
+            networks=_extract_networks(network_settings),
             created=attrs.get("Created", "N/A"),
             platform=attrs.get("Platform", "unknown"),
             cpu_percent=_calculate_cpu_percent(stats) if stats else 0.0,
@@ -99,6 +99,7 @@ def _format_entrypoint(config: Dict[str, Any]) -> str | None:
         return " ".join(entry)
     return entry
 
+
 def _extract_ip_address(network_settings: Dict[str, Any]) -> str:
     networks = network_settings.get("Networks")
     if isinstance(networks, dict):
@@ -108,3 +109,40 @@ def _extract_ip_address(network_settings: Dict[str, Any]) -> str:
                 return ip
     # fallback
     return network_settings.get("IPAddress", "N/A")
+
+
+def _extract_networks(network_settings: Dict[str, Any]) -> list[NetworkInfo]:
+    client = docker.from_env()
+    result = []
+
+    networks = network_settings.get("Networks", {})
+    if not isinstance(networks, dict):
+        return result
+
+    for name, net_data in networks.items():
+        network_id = net_data.get("NetworkID")
+        ip_address = net_data.get("IPAddress")
+
+        try:
+            network = client.networks.get(network_id)
+            ipam = (network.attrs.get("IPAM") or {}).get("Config", [{}])[0]
+
+            result.append(NetworkInfo(
+                name=name,
+                id=network_id or "",
+                ip_address=ip_address,
+                driver=network.attrs.get("Driver"),
+                gateway=ipam.get("Gateway"),
+                subnet=ipam.get("Subnet"),
+                internal=network.attrs.get("Internal"),
+                attachable=network.attrs.get("Attachable"),
+            ))
+        except Exception:
+            # fallback: include minimal data
+            result.append(NetworkInfo(
+                name=name,
+                id=network_id or "",
+                ip_address=ip_address
+            ))
+
+    return result

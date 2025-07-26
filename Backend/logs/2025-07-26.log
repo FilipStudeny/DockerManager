@@ -1,0 +1,8 @@
+[2025-07-26 16:17:02] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:03] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:05] [INFO] Attempting to start container: 019f254fb813
+[2025-07-26 16:17:05] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:06] [INFO] Successfully started container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:06] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:08] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-26 16:17:13] [INFO] Stats stream stopped for container 019f254fb813

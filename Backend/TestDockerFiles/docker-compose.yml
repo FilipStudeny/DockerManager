@@ -27,8 +27,26 @@ services:
     networks:
       - backend
 
+  cache:
+    image: redis:7-alpine
+    container_name: cache
+    networks:
+      - cache_net
+
+  worker:
+    image: python:3.12-alpine
+    container_name: worker
+    command: sh -c "while true; do echo Worker running...; sleep 10; done"
+    networks:
+      - backend
+      - worker_net
+
 networks:
   frontend:
     driver: bridge
   backend:
+    driver: bridge
+  cache_net:
+    driver: bridge
+  worker_net:
     driver: bridge

@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import { format } from "date-fns";
 import {
 	AlertTriangle,
@@ -13,29 +13,35 @@ import {
 	HardDriveIcon,
 	LinkIcon,
 	PlusCircleIcon,
+	Flame,
+	Terminal,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+import type { AxiosError } from "axios";
+
+import { useAssignNetworkToContainer } from "@/actions/commands/addNetworkToContainer";
 import { useAttachVolumeToContainer } from "@/actions/commands/addVolumeToContainer";
+import { useDeleteDockerContainer } from "@/actions/commands/deleteContainer";
 import { useRestartContainer } from "@/actions/commands/restartContainer";
 import { useStartContainer } from "@/actions/commands/startContainer";
 import { useStopContainer } from "@/actions/commands/stopContainer";
 import { useGetContainerDetails } from "@/actions/queries/getContainerDetails";
 import { useContainerStats } from "@/actions/queries/getContainerLiveStats";
 import { useInfiniteContainerLogs } from "@/actions/queries/getContainerLogs";
+import { useGetDockerNetworksSelectList } from "@/actions/queries/getDockerNetworksSelectList";
 import { useGetVolumesSelectList } from "@/actions/queries/getVolumesSelectList";
 import { LiveStatChart } from "@/components/LiveStatChart";
 import { LoadingPage } from "@/components/LoadinPage";
 
-export const Route = createFileRoute("/containers/$id")({
+export const Route = createFileRoute("/containers/$id/")({
 	component: ContainerDetailsPage,
 });
 
 function ContainerDetailsPage() {
 	const { id } = useParams({ strict: false }) as { id: string };
 	const { data, isLoading, isError, refetch } = useGetContainerDetails(id);
-	const [confirmDeleteStage, setConfirmDeleteStage] = useState<0 | 1 | 2>(0);
 
 	const isValidContainer = !isLoading && !isError && data && data.status?.toLowerCase().includes("run");
 
@@ -61,16 +67,20 @@ function ContainerDetailsPage() {
 		mutate: stopContainer,
 		isPending: isStoppingContainer,
 	} = useStopContainer(id);
-
+	const navigate = useNavigate();
+	const { mutate: deleteContainer, isPending: isDeletingContainer } = useDeleteDockerContainer();
 	const isRunning = data?.status === "RUNNING";
 	const isAnyPending = isStartingContainer || isStoppingContainer || isRestartingContainer;
+	const { data: networkList } = useGetDockerNetworksSelectList();
+	const { mutate: assignNetwork, isPending: isAssigning } = useAssignNetworkToContainer(id);
+	const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
 	const extraStats = {
 		cpu_cores: perCpuData.at(-1)?.length ?? 0,
 		memory_percent:
-			memData.at(-1)?.value && memLimit
-				? (memData.at(-1)!.value / memLimit) * 100
-				: null,
+            memData.at(-1)?.value && memLimit
+            	? (memData.at(-1)!.value / memLimit) * 100
+            	: null,
 		network_rx: networkRx.at(-1) ?? 0,
 		network_tx: networkTx.at(-1) ?? 0,
 		blk_read: blockRead.at(-1) ?? 0,
@@ -87,39 +97,27 @@ function ContainerDetailsPage() {
 		);
 	}
 
-	const handleAction = async (action: "start" | "stop" | "restart" | "delete") => {
-		if (action === "delete") {
-			if (confirmDeleteStage === 0) {
-				setConfirmDeleteStage(1);
-				toast("Press delete again to confirm", { icon: "⚠️" });
+	const handleAction = async (action: "start" | "stop" | "restart" | "delete" | "forceDelete") => {
+		if (action === "delete" || action === "forceDelete") {
+			const force = action === "forceDelete";
 
-				return;
-			}
-
-			if (confirmDeleteStage === 1) {
-				setConfirmDeleteStage(2);
-				toast("Final confirmation required", { icon: "⚠️" });
-
-				return;
-			}
-
-			try {
-				await fetch(`/containers/${id}`, { method: "DELETE" });
-				toast.success("Container deleted");
-			} catch {
-				toast.error("Failed to delete container");
-			}
+			deleteContainer(
+				{ containerId: id, force },
+				{
+					onSuccess: () => {
+						toast.success("Container deleted successfully");
+						navigate({ to: "/containers" });
+					},
+					onError: (error) => {
+						const message = (error as AxiosError<{ detail: string }>).response?.data?.detail ?? "Failed to delete container";
+						toast.error(message);
+					},
+				},
+			);
 
 			return;
 		}
 
-		try {
-			await fetch(`/containers/${id}/${action}`, { method: "POST" });
-			toast.success(`Container ${action}ed`);
-			refetch();
-		} catch {
-			toast.error(`Failed to ${action} container`);
-		}
 	};
 
 	return (
@@ -203,14 +201,20 @@ function ContainerDetailsPage() {
 							);
 						}}
 					/>
-					<ActionButton
-						icon={<Trash2 size={16} />}
-						label={["Delete", "Confirm Delete", "Are you sure?"][confirmDeleteStage]}
-						color="red"
-						darker={confirmDeleteStage > 0}
+					<DeleteButtonGroup
+						onAction={handleAction}
+						isLoading={isDeletingContainer}
 						disabled={isAnyPending}
-						onClick={() => handleAction("delete")}
 					/>
+					<ActionButton
+						icon={<Terminal size={16} />}
+						label="Terminal"
+						color="yellow"
+						onClick={() => {
+							navigate({ to: "/containers/$id/terminal", params: { id } });
+						}}
+					/>
+
 				</div>
 			</div>
 
@@ -224,22 +228,57 @@ function ContainerDetailsPage() {
 						<DetailItem label="Entrypoint" value={data.entrypoint ?? "—"} />
 					</div>
 				</DataSection>
-
 				<DataSection title="Networking" icon={<Network size={20} />}>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-						<DetailItem label="IP Address" value={data.ip_address} />
-						<DetailItem label="Network Mode" value={data.network_mode} />
-						<DetailItem label="Ports" value={data.ports?.length || 0} />
+					<div className="flex flex-col gap-4">
+						{data.networks?.map((net) => (
+							<div
+								key={net.id}
+								className="rounded-lg border border-gray-200 bg-white shadow-sm p-4 space-y-3"
+							>
+								<div className="flex items-center justify-between">
+									<div className="text-lg font-semibold text-blue-800">{net.name}</div>
+									<div className="flex gap-2">
+										{net.internal && (
+											<span className="text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+												Internal
+											</span>
+										)}
+										{net.attachable && (
+											<span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+												Attachable
+											</span>
+										)}
+									</div>
+								</div>
+
+								<hr className="border-t border-gray-200" />
+
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-700">
+									<DetailItem label="Driver" value={net.driver ?? "-"} />
+									<DetailItem label="IP Address" value={net.ip_address ?? "—"} />
+									<DetailItem label="Gateway" value={net.gateway ?? "—"} />
+									<DetailItem label="Subnet" value={net.subnet ?? "—"} />
+									<DetailItem label="Network ID" value={net.id} />
+								</div>
+							</div>
+						))}
+
+						{data.ports && data.ports?.length > 0 && (
+							<div className="text-sm text-gray-700 mt-2">
+								<DetailItem label="Ports" value={data.ports.length} />
+							</div>
+						)}
 					</div>
 				</DataSection>
+
 				<DataSection title="Runtime Info" icon={<Play size={20} />}>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 						<DetailItem label="Status" value={data.status} />
 						<DetailItem label="State" value={data.state ?? "—"} />
-						<DetailItem label="Uptime" value={extraStats.uptime_seconds ? `${extraStats.uptime_seconds}s` : "—"} />
+						<DetailItem label="Uptime" value={extraStats.uptime_seconds ? "${extraStats.uptime_seconds}s" : "—"} />
 						<DetailItem label="PID" value={data.pid ?? "—"} />
 						<DetailItem label="Exit Code" value={data.exit_code ?? "—"} />
-						<DetailItem label="CPU Limit" value={data.cpu_limit != null ? `${data.cpu_limit.toFixed(2)} cores` : "—"} />
+						<DetailItem label="CPU Limit" value={data.cpu_limit != null ? "${data.cpu_limit.toFixed(2)} cores" : "—"} />
 						<DetailItem label="Platform" value={data.platform ?? "—"} />
 						<DetailItem label="Privileged" value={data.privileged ? "Yes" : "No"} />
 					</div>
@@ -251,17 +290,17 @@ function ContainerDetailsPage() {
 						<DetailItem label="Cores" value={extraStats.cpu_cores ?? "—"} />
 						<DetailItem label="Memory Usage" value={`${memData.at(-1)?.value?.toFixed(2) ?? "—"} MB`} />
 						<DetailItem label="Memory Limit" value={`${memLimit?.toFixed(2) ?? "—"} MB`} />
-						<DetailItem label="Memory %" value={extraStats.memory_percent != null ? `${extraStats.memory_percent.toFixed(1)}%` : "—"} />
+						<DetailItem label="Memory %" value={extraStats.memory_percent != null ? "${extraStats.memory_percent.toFixed(1)}%" : "—"} />
 						<DetailItem label="Volumes Count" value={data.volumes} />
 					</div>
 				</DataSection>
 
 				<DataSection title="Disk & Network I/O" icon={<HardDrive size={20} />}>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-						<DetailItem label="Net RX" value={`${(extraStats.network_rx / 1024).toFixed(1)} KB`} />
-						<DetailItem label="Net TX" value={`${(extraStats.network_tx / 1024).toFixed(1)} KB`} />
-						<DetailItem label="Block Read" value={`${(extraStats.blk_read / 1024).toFixed(1)} KB`} />
-						<DetailItem label="Block Write" value={`${(extraStats.blk_write / 1024).toFixed(1)} KB`} />
+						<DetailItem label="Net RX" value={"${(extraStats.network_rx / 1024).toFixed(1)} KB"} />
+						<DetailItem label="Net TX" value={"${(extraStats.network_tx / 1024).toFixed(1)} KB"} />
+						<DetailItem label="Block Read" value={"${(extraStats.blk_read / 1024).toFixed(1)} KB"} />
+						<DetailItem label="Block Write" value={"${(extraStats.blk_write / 1024).toFixed(1)} KB"} />
 					</div>
 				</DataSection>
 
@@ -278,6 +317,53 @@ function ContainerDetailsPage() {
 				)}
 
 			</div>
+			<DataSection title="Assign Network" icon={<Network size={20} />}>
+				<div className="flex flex-col gap-3 max-w-sm">
+					<select
+						className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+						value={selectedNetwork ?? ""}
+						onChange={(e) => {
+							setSelectedNetwork(e.target.value);
+						}}
+					>
+						<option value="" disabled>Select a network</option>
+						{networkList?.map((net) => (
+							<option key={net.id} value={net.name}>
+								{net.name} — {net.gateway ?? "no gateway"}
+							</option>
+						))}
+					</select>
+
+					{selectedNetwork && (
+						<div className="flex justify-between items-center gap-2">
+							<p className="text-sm text-gray-600">
+								Confirm assigning <strong>{selectedNetwork}</strong> to this container?
+							</p>
+							<button
+								onClick={() => {
+									assignNetwork(
+										{ network_name: selectedNetwork },
+										{
+											onSuccess: () => {
+												toast.success(`Network ${selectedNetwork} assigned to container`);
+												setSelectedNetwork(null);
+												refetch();
+											},
+											onError: (err) => {
+												toast.error(err.message || "Failed to assign network");
+											},
+										},
+									);
+								}}
+								disabled={isAssigning}
+								className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded disabled:opacity-50"
+							>
+								{isAssigning ? "Assigning..." : "Confirm"}
+							</button>
+						</div>
+					)}
+				</div>
+			</DataSection>
 
 			{/* Charts */}
 			{isValidContainer && (
@@ -372,8 +458,9 @@ function ContainerDetailsPage() {
 					<p className="text-red-700 text-sm">{data.latest_error_message}</p>
 				</section>
 			)}
-
+			<Outlet />
 		</div>
+
 	);
 }
 
@@ -415,7 +502,7 @@ function ActionButton({
 			onClick={onClick}
 			disabled={disabled}
 			className={`${base} text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition whitespace-nowrap 
-				${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
 		>
 			{icon}
 			{label}
@@ -490,7 +577,7 @@ export function ContainerLogsPanel({ containerId }: { containerId: string }) {
 						name="to"
 						className="border rounded px-2 py-1"
 						defaultValue={
-							toDate ? format(new Date(toDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
+							fromDate ? format(new Date(fromDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
 						}
 					/>
 					<button type="submit" className="text-blue-600 hover:underline">
@@ -660,5 +747,99 @@ export function ContainerVolumesPanel({ mounts, containerId, onVolumeAttached }:
 				)}
 			</div>
 		</DataSection>
+	);
+}
+
+function DeleteButtonGroup({
+	onAction,
+	isLoading,
+	disabled,
+}: {
+	onAction: (type: "delete" | "forceDelete")=> void,
+	isLoading: boolean,
+	disabled?: boolean,
+}) {
+	const [open, setOpen] = useState(false);
+	const [confirmStage, setConfirmStage] = useState<0 | 1 | 2>(0);
+	const [actionType, setActionType] = useState<"delete" | "forceDelete" | null>(null);
+
+	const getLabel = (type: "delete" | "forceDelete") => {
+		const stages = {
+			delete: ["Delete", "Confirm Delete", "Are you sure?"],
+			forceDelete: ["Force Delete", "Confirm Force", "Force?"],
+		};
+
+		return stages[type][confirmStage] || stages[type][0];
+	};
+
+	const handleClick = (type: "delete" | "forceDelete") => {
+		if (actionType !== type) {
+			setActionType(type);
+			setConfirmStage(1);
+
+			return;
+		}
+
+		if (confirmStage === 1) {
+			setConfirmStage(2);
+
+			return;
+		}
+
+		onAction(type);
+		setConfirmStage(0);
+		setActionType(null);
+		setOpen(false);
+	};
+
+	useEffect(() => {
+		if (confirmStage > 0) {
+			const timeout = setTimeout(() => {
+				setConfirmStage(0);
+				setActionType(null);
+			}, 8000);
+
+			return () => clearTimeout(timeout);
+		}
+	}, [confirmStage]);
+
+	return (
+		<div className="relative inline-block">
+			<button
+				onClick={() => setOpen(prev => !prev)}
+				disabled={isLoading || disabled}
+				className={`bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition 
+                ${isLoading || disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+			>
+				<Trash2 size={16} />
+				Delete
+				<span className="ml-1">▾</span>
+			</button>
+
+			{open && (
+				<div className="absolute mt-1 right-0 bg-white border rounded shadow-lg z-10 text-sm w-48">
+					{(["delete", "forceDelete"] as const).map((type) => (
+						<button
+							key={type}
+							className={`flex w-full items-center justify-between px-3 py-2 hover:bg-gray-100 text-left 
+                                ${actionType === type && confirmStage > 0 ? "bg-yellow-100 font-semibold" : ""}`}
+							onClick={() => handleClick(type)}
+							disabled={isLoading}
+						>
+							<span className="flex items-center gap-2">
+								{type === "delete" ? <Trash2 size={14} /> : <Flame size={14} className="text-red-600" />}
+								{getLabel(type)}
+							</span>
+							{actionType === type && confirmStage > 0 && <span className="text-yellow-600 text-xs">⚠</span>}
+						</button>
+					))}
+					{confirmStage > 0 && (
+						<div className="text-xs text-gray-500 px-3 py-2 border-t">
+							Click again to confirm. Auto-cancels in 8s.
+						</div>
+					)}
+				</div>
+			)}
+		</div>
 	);
 }

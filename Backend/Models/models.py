@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from enum import Enum
 
 
@@ -54,9 +54,17 @@ class ContainerSummary(BaseModel):
     volumes: int
 
 
+class NetworkInfo(BaseModel):
+    name: str
+    id: str
+    ip_address: str | None = None
+    driver: str | None = None
+    gateway: str | None = None
+    subnet: str | None = None
+    internal: bool | None = None
+    attachable: bool | None = None
+
 class ContainerDetails(ContainerSummary):
-    ip_address: str = Field(..., description="Container's internal IP address")
-    network_mode: str = Field(..., description="Docker network mode (e.g. bridge, host)")
     created: str = Field(..., description="Raw container creation timestamp")
     platform: Optional[str] = Field("unknown", description="Platform or architecture (e.g. linux/amd64)")
     cpu_percent: float = Field(..., description="Current CPU usage percentage")
@@ -74,7 +82,7 @@ class ContainerDetails(ContainerSummary):
     pid: Optional[int] = Field(None, description="Main process PID")
     exit_code: Optional[int] = Field(None, description="Exit code of the container if it has stopped")
     state: Optional[str] = Field(None, description="Raw container state (e.g. running, exited)")
-
+    networks: List[NetworkInfo] = Field(default_factory=list, description="All Docker networks connected to this container")
 
 class DockerStatus(BaseModel):
     status: str = Field(..., description="Docker daemon status message")
@@ -91,7 +99,13 @@ class DockerImageSummary(BaseModel):
     created: Optional[str]
     architecture: Optional[str]
     os: Optional[str]
+    containers: List['ImageContainerInfo'] = Field(default_factory=list, description="Containers using this image")
 
+class VolumeContainerInfo(BaseModel):
+    id: str
+    name: str
+    status: ContainerStatusEnum
+    mountpoint: Optional[str] = None
 
 class DockerVolumeSummary(BaseModel):
     name: Optional[str] = Field(None, description="Volume name (if named Docker volume)")
@@ -103,7 +117,7 @@ class DockerVolumeSummary(BaseModel):
     created_at: Optional[str] = Field(None, description="Creation timestamp (Docker volumes)")
     size: Optional[str] = Field(None, description="Human-readable volume size (if available)")
     labels: Dict[str, str] = Field(default_factory=dict, description="Metadata labels (Docker volumes)")
-
+    containers: List[VolumeContainerInfo] = Field(default_factory=list, description="Containers using this volume")
 
 # ------------------ Docker Overview ------------------ #
 
@@ -115,6 +129,7 @@ class DockerOverview(BaseModel):
     images: int
     volumes: int
     logs_count: int
+    is_swarm_active: bool
 
 
 # ------------------ Container Stats ------------------ #
@@ -188,14 +203,76 @@ class CreatedVolumeResponse(BaseModel):
     labels: Optional[Dict[str, str]] = None
     options: Optional[Dict[str, str]] = None
 
+
 class VolumeSelectListItem(BaseModel):
     id: str
     name: str
 
+
 class VolumeSelectList(BaseModel):
     volumes: List[VolumeSelectListItem]
+
 
 class AttachVolumeRequest(BaseModel):
     volume_name: str
     mount_path: str
     read_only: bool = False
+
+class VolumeMount(BaseModel):
+    volume_name: str
+    mount_path: str
+    read_only: Optional[bool] = False
+
+
+class RestartPolicyModel(BaseModel):
+    name: Literal["no", "always", "unless-stopped", "on-failure"]
+    maximum_retry_count: Optional[int] = 0
+
+
+class CreateContainerRequest(BaseModel):
+    name: str
+    image: str
+    command: Optional[List[str]] = None
+    environment: Optional[Dict[str, str]] = None
+    ports: Optional[Dict[str, int]] = None
+    volume_mounts: Optional[List[VolumeMount]] = None
+    labels: Optional[Dict[str, str]] = None
+    working_dir: Optional[str] = None
+    entrypoint: Optional[List[str]] = None
+    user: Optional[str] = None
+    tty: Optional[bool] = False
+    detach: bool = True
+    networks: Optional[List[str]] = None
+    restart_policy: Optional[RestartPolicyModel] = None
+    start_after_create: Optional[bool] = True
+    dry_run: Optional[bool] = False
+
+class ImageContainerInfo(BaseModel):
+    id: str
+    name: str
+    status: ContainerStatusEnum
+
+class CreateDockerNetworkRequest(BaseModel):
+    name: str
+    driver: str = "bridge"
+    labels: Optional[Dict[str, str]] = None
+    check_duplicate: bool = True
+
+class AssignNetworkRequest(BaseModel):
+    network_name: str
+
+class DisconnectNetworkRequest(BaseModel):
+    network_name: str
+
+class AssignMultipleNetworksRequest(BaseModel):
+    network_names: List[str]
+
+class AssignNetworkWithIPRequest(BaseModel):
+    network_name: str
+    ipv4_address: Optional[str] = None
+
+class DockerNetworkSelectItem(BaseModel):
+    id: str
+    name: str
+    gateway: Optional[str] = None  # from IPAM config
+

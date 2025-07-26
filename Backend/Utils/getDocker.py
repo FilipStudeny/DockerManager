@@ -13,11 +13,15 @@ def get_docker_client() -> docker.DockerClient:
 
 
 def get_container(container_id: str) -> Any:
-    try:
-        return get_docker_client().containers.get(container_id)
-    except docker.errors.NotFound:
-        raise HTTPException(status_code=404, detail=f"Container {container_id} not found")
-
+    client = get_docker_client()
+    container_id = container_id.strip().lower()  # Normalize input
+    for container in client.containers.list(all=True):
+        logger.debug(f"Checking container: {container.id} ({container.name})")
+        if container.id.startswith(container_id) or container.name == container_id:
+            logger.info(f"Matched container: {container.name} ({container.id})")
+            return container
+    logger.warning(f"Container not found: {container_id}")
+    raise HTTPException(status_code=404, detail=f"Container '{container_id}' not found")
 
 def detect_container_errors(container: Any) -> tuple[int, Optional[str]]:
     try:

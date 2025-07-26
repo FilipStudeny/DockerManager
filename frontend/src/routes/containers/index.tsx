@@ -5,8 +5,8 @@ import {
 	Layers3,
 	PauseOctagon,
 	RefreshCcw,
-	Plus,
 	Boxes,
+	PlusIcon,
 } from "lucide-react";
 import { useState, type JSX } from "react";
 
@@ -16,6 +16,7 @@ import type { ContainerStatusEnum, ContainerSummary } from "@/client";
 
 import { useGetContainersList } from "@/actions/queries/getContainersList";
 import { DataTable, type ColumnConfig } from "@/components/DataTable";
+import { NavItem } from "@/components/NavBar";
 
 export const Route = createFileRoute("/containers/")({
 	component: ContainersPage,
@@ -99,15 +100,17 @@ function ContainersPage() {
 
 	return (
 		<div className="px-4 sm:px-6 md:px-10 py-6 space-y-10 bg-neutral-50 min-h-screen">
-			<div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-center">
+
+			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold text-neutral-900">Containers</h1>
-				<button
-					className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-					onClick={() => alert("Open create container modal or redirect")}
+
+				<NavItem
+					to="/containers/create"
+					icon={<PlusIcon size={16} />}
+					className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg"
 				>
-					<Plus size={16} />
 					Create New Container
-				</button>
+				</NavItem>
 			</div>
 
 			{/* Filter Cards */}

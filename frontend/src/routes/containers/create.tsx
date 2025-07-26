@@ -1,33 +1,46 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-	Plus,
-	Trash2,
-	Settings,
-	Cpu,
-	HardDrive,
-	RefreshCcw,
-	Shield,
-	Sliders,
-	Network,
-	Terminal,
-	Info,
-	Activity,
-	Stethoscope,
+	Plus, Trash2, Settings, Cpu, HardDrive, RefreshCcw, Shield,
+	Sliders, Network, Terminal,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 
 import { DashboardCard } from "..";
 
+import type { CreateContainerRequest, RestartPolicyModel } from "@/client";
+
+import { useCreateNewContainer } from "@/actions/commands/createNewContainer";
+import { useGetDockerNetworksSelectList } from "@/actions/queries/getDockerNetworksSelectList";
 import { HelpTooltip } from "@/components/HelpTooltip";
+
+type FormState = {
+	name: string,
+	image: string,
+	command: string,
+	entrypoint: string,
+	env: string[],
+	ports: string[],
+	volumes: string[],
+	restartPolicy: string,
+	privileged: boolean,
+	cpuLimit: string,
+	memoryLimit: string,
+	labels: string[],
+	networkMode: string,
+	buildArgs: string[],
+	links: string[],
+	capabilities: string[],
+	healthchecks: string[],
+	bindMounts: string[],
+};
 
 export const Route = createFileRoute("/containers/create")({
 	component: CreateContainerPage,
 });
 
 function CreateContainerPage() {
-	const navigate = useNavigate();
-	const [form, setForm] = useState({
+	const [form, setForm] = useState<FormState>({
 		name: "",
 		image: "",
 		command: "",
@@ -49,65 +62,124 @@ function CreateContainerPage() {
 	});
 
 	const [showAdvanced, setShowAdvanced] = useState(false);
-
-	const updateField = (key: string, value: any) =>
+	const [logLines, setLogLines] = useState<string[]>([]);
+	const { mutate: createNewContainer, isPending: isPendingCreatingNewContainer } = useCreateNewContainer();
+	const { data: networkOptions, isLoading: loadingNetworks } = useGetDockerNetworksSelectList();
+	function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
 		setForm((prev) => ({ ...prev, [key]: value }));
+	}
 
-	const updateArrayField = (key: string, idx: number, value: string) => {
+	function updateArrayField<K extends keyof FormState>(key: K, idx: number, value: string) {
+		if (!Array.isArray(form[key])) return;
 		setForm((prev) => ({
 			...prev,
-			[key]: prev[key].map((item, i) => (i === idx ? value : item)),
+			[key]: (prev[key] as string[]).map((item, i) => (i === idx ? value : item)) as FormState[K],
 		}));
-	};
+	}
 
-	const addArrayField = (key: string) =>
-		setForm((prev) => ({ ...prev, [key]: [...prev[key], ""] }));
-
-	const removeArrayField = (key: string, idx: number) => {
+	function addArrayField<K extends keyof FormState>(key: K) {
+		if (!Array.isArray(form[key])) return;
 		setForm((prev) => ({
 			...prev,
-			[key]: prev[key].filter((_, i) => i !== idx),
+			[key]: [...(prev[key] as string[]), ""] as FormState[K],
 		}));
-	};
+	}
+
+	function removeArrayField<K extends keyof FormState>(key: K, idx: number) {
+		if (!Array.isArray(form[key])) return;
+		setForm((prev) => ({
+			...prev,
+			[key]: (prev[key] as string[]).filter((_, i) => i !== idx) as FormState[K],
+		}));
+	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const payload = {
-			...form,
-			env: form.env.filter(Boolean),
-			ports: form.ports.filter(Boolean),
-			volumes: form.volumes.filter(Boolean),
-			labels: form.labels.filter(Boolean),
-			build_args: form.buildArgs.filter(Boolean),
-			links: form.links.filter(Boolean),
-			capabilities: form.capabilities.filter(Boolean),
-			healthchecks: form.healthchecks.filter(Boolean),
-			bind_mounts: form.bindMounts.filter(Boolean),
-			cpu_limit: form.cpuLimit ? parseFloat(form.cpuLimit) : undefined,
-			memory_limit: form.memoryLimit ? parseInt(form.memoryLimit, 10) : undefined,
+		const ports: Record<number, number> = {};
+		for (const entry of form.ports.filter(Boolean)) {
+			const [host, container] = entry.split(":").map(Number);
+			if (!isNaN(host) && !isNaN(container)) {
+				ports[container] = host;
+			}
+		}
+
+		const env: Record<string, string> = {};
+		form.env.filter(Boolean).forEach((e) => {
+			const [k, ...v] = e.split("=");
+			if (k) env[k] = v.join("=");
+		});
+
+		const labels: Record<string, string> = {};
+		form.labels.filter(Boolean).forEach((e) => {
+			const [k, ...v] = e.split("=");
+			if (k) labels[k] = v.join("=");
+		});
+
+		const volume_mounts = form.volumes.filter(Boolean).map((v) => {
+			const [source, target] = v.split(":");
+
+			return { volume_name: source, mount_path: target, read_only: false };
+		});
+
+		const validRestartPolicies: RestartPolicyModel["name"][] = [
+			"no",
+			"always",
+			"on-failure",
+			"unless-stopped",
+		];
+
+		const restartPolicyName = validRestartPolicies.includes(form.restartPolicy as any)
+			? (form.restartPolicy as RestartPolicyModel["name"])
+			: "no";
+
+		const payload: CreateContainerRequest = {
+			name: form.name,
+			image: form.image,
+			command: form.command ? form.command.trim().split(" ") : undefined,
+			entrypoint: form.entrypoint ? form.entrypoint.trim().split(" ") : undefined,
+			ports: Object.keys(ports).length > 0 ? ports : undefined,
+			environment: Object.keys(env).length > 0 ? env : undefined,
+			labels: Object.keys(labels).length > 0 ? labels : undefined,
+			volume_mounts: volume_mounts.length > 0 ? volume_mounts : undefined,
+			networks: form.networkMode ? [form.networkMode] : undefined,
+			restart_policy:
+				  restartPolicyName !== "no"
+				  	? {
+				  		name: restartPolicyName,
+				  		maximum_retry_count: 0,
+				  	}
+				  	: undefined,
+			start_after_create: true,
 		};
 
-		try {
-			const res = await fetch("/containers", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-
-			if (!res.ok) throw new Error("Failed");
-
-			toast.success("Container created successfully");
-			navigate({ to: "/containers" });
-		} catch {
-			toast.error("Failed to create container");
-		}
+		setLogLines([]);
+		createNewContainer(
+			{
+				request: payload,
+				onLine: (line) => {
+					setLogLines((prev) => [...prev, line]);
+				},
+			},
+			{
+				onSuccess: () => {
+					toast.success("Container created successfully");
+				},
+				onError: () => {
+					toast.error("Failed to create container");
+				},
+			},
+		);
 	};
 
 	return (
 		<div className="p-6 mx-auto space-y-8">
 			<h1 className="text-3xl font-bold text-gray-900">Create New Container</h1>
-
+			{logLines.length > 0 && (
+				<pre className="mt-6 p-4 bg-black text-white text-sm rounded-md max-h-96 overflow-auto border">
+					{logLines.join("\n")}
+				</pre>
+			)}
 			<form onSubmit={handleSubmit} className="space-y-8">
 				<SectionCard icon={<Settings size={20} />} title="Basic Configuration">
 					<div className="grid md:grid-cols-2 gap-6">
@@ -141,32 +213,29 @@ function CreateContainerPage() {
 								<ArrayField label="Ports (e.g., 8080:80)" help="Expose container ports (host:container)" values={form.ports} onChange={(i, v) => updateArrayField("ports", i, v)} onAdd={() => addArrayField("ports")} onRemove={(i) => removeArrayField("ports", i)} />
 								<ArrayField label="Volumes (/host:/container)" help="Mount volumes from host" values={form.volumes} onChange={(i, v) => updateArrayField("volumes", i, v)} onAdd={() => addArrayField("volumes")} onRemove={(i) => removeArrayField("volumes", i)} />
 								<ArrayField label="Labels (key=value)" help="Metadata for organizing containers" values={form.labels} onChange={(i, v) => updateArrayField("labels", i, v)} onAdd={() => addArrayField("labels")} onRemove={(i) => removeArrayField("labels", i)} />
-								<TextInput label="CPU Limit" value={form.cpuLimit} onChange={(v) => updateField("cpuLimit", v)} placeholder="e.g., 1.5" help="Maximum number of CPU cores (e.g., 0.5, 2)" />
-								<TextInput label="Memory Limit (MB)" value={form.memoryLimit} onChange={(v) => updateField("memoryLimit", v)} placeholder="e.g., 512" help="Max memory in megabytes (e.g., 256, 2048)" />
 							</div>
 						</SectionCard>
 
 						<SectionCard icon={<Network size={20} />} title="Networking">
-							<div className="grid md:grid-cols-2 gap-6">
-								<TextInput label="Network Mode" value={form.networkMode} onChange={(v) => updateField("networkMode", v)} placeholder="bridge, host..." help="Docker network mode to attach to (e.g., bridge, host)" />
-								<ArrayField label="Links (container:alias)" help="Connect to other containers by alias" values={form.links} onChange={(i, v) => updateArrayField("links", i, v)} onAdd={() => addArrayField("links")} onRemove={(i) => removeArrayField("links", i)} />
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+									Network Mode
+									<HelpTooltip text="Select a Docker network to attach this container to" />
+								</label>
+								<select
+									value={form.networkMode}
+									onChange={(e) => updateField("networkMode", e.target.value)}
+									className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+								>
+									<option value="">-- Select Network --</option>
+									{loadingNetworks && <option disabled>Loading...</option>}
+									{networkOptions?.map((network) => (
+										<option key={network.id} value={network.name}>
+											{network.name} {network.gateway ? `(${network.gateway})` : ""}
+										</option>
+									))}
+								</select>
 							</div>
-						</SectionCard>
-
-						<SectionCard icon={<Info size={20} />} title="Build Arguments">
-							<ArrayField label="Build Args (key=value)" help="Arguments passed during build phase" values={form.buildArgs} onChange={(i, v) => updateArrayField("buildArgs", i, v)} onAdd={() => addArrayField("buildArgs")} onRemove={(i) => removeArrayField("buildArgs", i)} />
-						</SectionCard>
-
-						<SectionCard icon={<Activity size={20} />} title="Capabilities">
-							<ArrayField label="Linux Capabilities (e.g., NET_ADMIN)" help="Grant additional privileges" values={form.capabilities} onChange={(i, v) => updateArrayField("capabilities", i, v)} onAdd={() => addArrayField("capabilities")} onRemove={(i) => removeArrayField("capabilities", i)} />
-						</SectionCard>
-
-						<SectionCard icon={<Stethoscope size={20} />} title="Healthchecks">
-							<ArrayField label="Healthcheck Command" help="Command to run for checking container health" values={form.healthchecks} onChange={(i, v) => updateArrayField("healthchecks", i, v)} onAdd={() => addArrayField("healthchecks")} onRemove={(i) => removeArrayField("healthchecks", i)} />
-						</SectionCard>
-
-						<SectionCard icon={<HardDrive size={20} />} title="Bind Mounts">
-							<ArrayField label="Bind Mounts (/host:/container)" help="Host file system mounts" values={form.bindMounts} onChange={(i, v) => updateArrayField("bindMounts", i, v)} onAdd={() => addArrayField("bindMounts")} onRemove={(i) => removeArrayField("bindMounts", i)} />
 						</SectionCard>
 					</>
 				)}
@@ -176,9 +245,14 @@ function CreateContainerPage() {
 				</button>
 
 				<div className="flex justify-end">
-					<button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 shadow-sm">
-						Create Container
+					<button
+						type="submit"
+						className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 shadow-sm"
+						disabled={isPendingCreatingNewContainer}
+					>
+						{isPendingCreatingNewContainer ? "Creating..." : "Create Container"}
 					</button>
+
 				</div>
 			</form>
 		</div>
@@ -264,7 +338,7 @@ function ArrayField({
 	);
 }
 
-export function SectionCard({
+function SectionCard({
 	icon,
 	title,
 	children,
