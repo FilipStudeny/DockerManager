@@ -10,11 +10,10 @@ import {
 } from "lucide-react";
 import { useState, type JSX } from "react";
 
-import { DashboardCard } from "..";
-
 import type { ContainerStatusEnum, ContainerSummary } from "@/client";
 
 import { useGetContainersList } from "@/actions/queries/getContainersList";
+import { DashboardCard } from "@/components/DashBoardCard";
 import { DataTable, type ColumnConfig } from "@/components/DataTable";
 import { NavItem } from "@/components/NavBar";
 

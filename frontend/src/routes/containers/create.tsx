@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
 	Plus, Trash2, Settings, Cpu, HardDrive, RefreshCcw, Shield,
 	Sliders, Network, Terminal,
@@ -6,13 +6,12 @@ import {
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 
-import { DashboardCard } from "..";
-
 import type { CreateContainerRequest, RestartPolicyModel } from "@/client";
 
 import { useCreateNewContainer } from "@/actions/commands/createNewContainer";
 import { useGetDockerNetworksSelectList } from "@/actions/queries/getDockerNetworksSelectList";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { DashboardCard } from "@/components/DashBoardCard";
 
 type FormState = {
 	name: string,

@@ -1,7 +1,6 @@
 import json
-from datetime import time
 from typing import Dict
-
+from datetime import datetime
 from docker.errors import DockerException, ImageNotFound
 from fastapi import Body
 from starlette.responses import StreamingResponse
@@ -23,8 +22,7 @@ def stream_pull_with_progress_and_summary_query(body: PullImageRequest = Body(..
                 decode=True
             )
 
-            layer_start_times: Dict[str, float] = {}
-
+            layer_start_times: Dict[str, datetime] = {}
             for line in pull_stream:
                 if 'id' in line and 'progressDetail' in line:
                     layer_id = line['id']
@@ -38,12 +36,12 @@ def stream_pull_with_progress_and_summary_query(body: PullImageRequest = Body(..
                         line["progress_percent"] = percent
 
                     # Download speed
-                    now = time()
+                    now = datetime.now()
                     if layer_id not in layer_start_times:
                         layer_start_times[layer_id] = now
                         line["download_speed"] = 0
                     else:
-                        elapsed = now - layer_start_times[layer_id]
+                        elapsed = (now - layer_start_times[layer_id]).total_seconds()
                         speed = int(current / elapsed) if elapsed > 0 else 0
                         line["download_speed"] = speed  # bytes/sec
 

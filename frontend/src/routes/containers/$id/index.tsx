@@ -1,39 +1,25 @@
-import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { format } from "date-fns";
+import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
 import {
 	AlertTriangle,
 	Play,
-	RotateCcw,
-	StopCircle,
-	Trash2,
 	Settings,
 	Network,
 	Disc,
 	HardDrive,
-	HardDriveIcon,
-	LinkIcon,
-	PlusCircleIcon,
-	Flame,
-	Terminal,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-hot-toast";
 
-import type { AxiosError } from "axios";
-
 import { useAssignNetworkToContainer } from "@/actions/commands/addNetworkToContainer";
-import { useAttachVolumeToContainer } from "@/actions/commands/addVolumeToContainer";
-import { useDeleteDockerContainer } from "@/actions/commands/deleteContainer";
-import { useRestartContainer } from "@/actions/commands/restartContainer";
-import { useStartContainer } from "@/actions/commands/startContainer";
-import { useStopContainer } from "@/actions/commands/stopContainer";
 import { useGetContainerDetails } from "@/actions/queries/getContainerDetails";
 import { useContainerStats } from "@/actions/queries/getContainerLiveStats";
-import { useInfiniteContainerLogs } from "@/actions/queries/getContainerLogs";
 import { useGetDockerNetworksSelectList } from "@/actions/queries/getDockerNetworksSelectList";
-import { useGetVolumesSelectList } from "@/actions/queries/getVolumesSelectList";
+import { DataSection, DetailItem } from "@/components/DataSection";
 import { LiveStatChart } from "@/components/LiveStatChart";
 import { LoadingPage } from "@/components/LoadinPage";
+import { ContainerLogsPanel } from "@/features/Container/ContainerLogsPanel";
+import { ContainerStatusActions } from "@/features/Container/ContainerStatusActions";
+import { ContainerVolumesPanel } from "@/features/Container/ContainerVolumesPanel";
 
 export const Route = createFileRoute("/containers/$id/")({
 	component: ContainerDetailsPage,
@@ -42,6 +28,7 @@ export const Route = createFileRoute("/containers/$id/")({
 function ContainerDetailsPage() {
 	const { id } = useParams({ strict: false }) as { id: string };
 	const { data, isLoading, isError, refetch } = useGetContainerDetails(id);
+	const isRunning = data?.status === "RUNNING";
 
 	const isValidContainer = !isLoading && !isError && data && data.status?.toLowerCase().includes("run");
 
@@ -57,20 +44,6 @@ function ContainerDetailsPage() {
 		uptime,
 	} = useContainerStats(id, isValidContainer);
 
-	const { mutate: startContainer, isPending: isStartingContainer } = useStartContainer(id);
-	const {
-		mutate: restartContainer,
-		isPending: isRestartingContainer,
-	} = useRestartContainer(id);
-
-	const {
-		mutate: stopContainer,
-		isPending: isStoppingContainer,
-	} = useStopContainer(id);
-	const navigate = useNavigate();
-	const { mutate: deleteContainer, isPending: isDeletingContainer } = useDeleteDockerContainer();
-	const isRunning = data?.status === "RUNNING";
-	const isAnyPending = isStartingContainer || isStoppingContainer || isRestartingContainer;
 	const { data: networkList } = useGetDockerNetworksSelectList();
 	const { mutate: assignNetwork, isPending: isAssigning } = useAssignNetworkToContainer(id);
 	const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
@@ -97,29 +70,6 @@ function ContainerDetailsPage() {
 		);
 	}
 
-	const handleAction = async (action: "start" | "stop" | "restart" | "delete" | "forceDelete") => {
-		if (action === "delete" || action === "forceDelete") {
-			const force = action === "forceDelete";
-
-			deleteContainer(
-				{ containerId: id, force },
-				{
-					onSuccess: () => {
-						toast.success("Container deleted successfully");
-						navigate({ to: "/containers" });
-					},
-					onError: (error) => {
-						const message = (error as AxiosError<{ detail: string }>).response?.data?.detail ?? "Failed to delete container";
-						toast.error(message);
-					},
-				},
-			);
-
-			return;
-		}
-
-	};
-
 	return (
 		<div className="p-4 space-y-6 bg-gray-50 min-h-screen">
 			{/* Header */}
@@ -128,94 +78,7 @@ function ContainerDetailsPage() {
 					<Settings size={28} className="text-blue-600" />
 					Container: {data.name}
 				</h1>
-				<div className="flex gap-2 flex-wrap">
-					<ActionButton
-						icon={<Play size={16} />}
-						label={isStartingContainer ? "Starting..." : "Start"}
-						color="green"
-						disabled={isAnyPending || isRunning}
-						onClick={() => {
-							toast.promise(
-								new Promise<void>((resolve, reject) => {
-									startContainer(undefined, {
-										onSuccess: () => {
-											refetch();
-											resolve();
-										},
-										onError: (err) => reject(err),
-									});
-								}),
-								{
-									loading: "Starting container...",
-									success: "Container started successfully",
-									error: "Failed to start container",
-								},
-							);
-						}}
-					/>
-					<ActionButton
-						icon={<RotateCcw size={16} />}
-						label={isRestartingContainer ? "Restarting..." : "Restart"}
-						color="yellow"
-						disabled={isAnyPending || !isRunning}
-						onClick={() => {
-							toast.promise(
-								new Promise<void>((resolve, reject) => {
-									restartContainer(undefined, {
-										onSuccess: () => {
-											refetch();
-											resolve();
-										},
-										onError: (err) => reject(err),
-									});
-								}),
-								{
-									loading: "Restarting container...",
-									success: "Container restarted",
-									error: "Failed to restart container",
-								},
-							);
-						}}
-					/>
-					<ActionButton
-						icon={<StopCircle size={16} />}
-						label={isStoppingContainer ? "Stopping..." : "Stop"}
-						color="red"
-						disabled={isAnyPending || !isRunning}
-						onClick={() => {
-							toast.promise(
-								new Promise<void>((resolve, reject) => {
-									stopContainer(undefined, {
-										onSuccess: () => {
-											refetch();
-											resolve();
-										},
-										onError: (err) => reject(err),
-									});
-								}),
-								{
-									loading: "Stopping container...",
-									success: "Container stopped",
-									error: "Failed to stop container",
-								},
-							);
-						}}
-					/>
-					<DeleteButtonGroup
-						onAction={handleAction}
-						isLoading={isDeletingContainer}
-						disabled={isAnyPending}
-					/>
-					<ActionButton
-						icon={<Terminal size={16} />}
-						label="Terminal"
-						color="yellow"
-						onClick={() => {
-							navigate({ to: "/containers/$id/terminal", params: { id } });
-						}}
-					/>
-
-				</div>
+				<ContainerStatusActions id={id} isRunning={isRunning} refetch={refetch}/>
 			</div>
 
 			{/* Metadata */}
@@ -461,385 +324,5 @@ function ContainerDetailsPage() {
 			<Outlet />
 		</div>
 
-	);
-}
-
-function DetailItem({ label, value, icon }: { label: string, value: string | number, icon?: React.ReactNode }) {
-	return (
-		<div className="flex items-start gap-2">
-			{icon && <span className="mt-0.5 text-gray-400">{icon}</span>}
-			<div>
-				<p className="text-xs text-gray-500">{label}</p>
-				<p className="text-sm font-medium text-gray-900 break-all">{value}</p>
-			</div>
-		</div>
-	);
-}
-
-function ActionButton({
-	icon,
-	label,
-	color,
-	onClick,
-	darker = false,
-	disabled = false,
-}: {
-	icon: React.ReactNode,
-	label: string,
-	color: "green" | "yellow" | "red",
-	onClick: ()=> void,
-	darker?: boolean,
-	disabled?: boolean,
-}) {
-	const base = {
-		green: "bg-green-500 hover:bg-green-600",
-		yellow: "bg-yellow-400 hover:bg-yellow-500",
-		red: darker ? "bg-red-700 hover:bg-red-800" : "bg-red-500 hover:bg-red-600",
-	}[color];
-
-	return (
-		<button
-			onClick={onClick}
-			disabled={disabled}
-			className={`${base} text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition whitespace-nowrap 
-                ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-		>
-			{icon}
-			{label}
-		</button>
-	);
-}
-
-export function DataSection({ title, children, icon }: { title: string, children: React.ReactNode, icon?: React.ReactNode }) {
-	return (
-		<section className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-			<h2 className="text-base font-semibold mb-3 text-gray-800 flex items-center gap-2">
-				{icon}
-				{title}
-			</h2>
-			{children}
-		</section>
-	);
-}
-
-export function ContainerLogsPanel({ containerId }: { containerId: string }) {
-	const [fromDate, setFromDate] = useState<number | undefined>();
-	const [toDate, setToDate] = useState<number | undefined>();
-
-	const {
-		data,
-		isLoading,
-		isError,
-		fetchNextPage,
-		hasNextPage,
-		isFetchingNextPage,
-		refetch,
-	} = useInfiniteContainerLogs(containerId, 100, fromDate, toDate);
-
-	const logs = useMemo(
-		() => data?.pages.flatMap((page) => page.logs) ?? [],
-		[data],
-	);
-
-	const handleDateFilter = (e: React.FormEvent) => {
-		e.preventDefault();
-		const form = e.target as HTMLFormElement;
-		const from = (form.elements.namedItem("from") as HTMLInputElement).value;
-		const to = (form.elements.namedItem("to") as HTMLInputElement).value;
-
-		setFromDate(from ? Math.floor(new Date(from).getTime() / 1000) : undefined);
-		setToDate(to ? Math.floor(new Date(to).getTime() / 1000) : undefined);
-	};
-
-	return (
-		<div className="flex flex-col gap-4">
-			{/* Header */}
-			<div className="flex flex-wrap justify-between gap-4 items-center">
-				<p className="text-sm text-gray-600">
-					{isLoading
-						? "Loading logs..."
-						: isError
-							? "Failed to load logs."
-							: `Showing ${logs.length} log lines`}
-				</p>
-				<form onSubmit={handleDateFilter} className="flex items-center gap-2 text-xs">
-					<input
-						type="datetime-local"
-						name="from"
-						className="border rounded px-2 py-1"
-						defaultValue={
-							fromDate ? format(new Date(fromDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
-						}
-					/>
-					<span>to</span>
-					<input
-						type="datetime-local"
-						name="to"
-						className="border rounded px-2 py-1"
-						defaultValue={
-							fromDate ? format(new Date(fromDate * 1000), "yyyy-MM-dd'T'HH:mm") : ""
-						}
-					/>
-					<button type="submit" className="text-blue-600 hover:underline">
-						Apply
-					</button>
-				</form>
-				<button
-					onClick={() => refetch()}
-					className="text-xs text-blue-600 hover:underline"
-					disabled={isLoading}
-				>
-					Refresh
-				</button>
-			</div>
-
-			{/* Logs Display */}
-			<div className="bg-black text-green-400 text-sm rounded-md p-3 overflow-auto max-h-[300px] font-mono border border-gray-700 space-y-1">
-				{isLoading && <p className="text-gray-400">Loading...</p>}
-				{isError && <p className="text-red-400">Error loading logs.</p>}
-				{!isLoading && logs.length === 0 && (
-					<p className="text-gray-500">No logs available.</p>
-				)}
-				{logs.map((log, idx) => (
-					<div key={idx} className="whitespace-pre-wrap">
-						<span className="text-gray-500 mr-2">{log.timestamp}</span>
-						{log.message}
-					</div>
-				))}
-				{isFetchingNextPage && <p className="text-gray-400">Loading more...</p>}
-			</div>
-
-			{/* Load More */}
-			{hasNextPage && (
-				<div className="flex justify-end">
-					<button
-						className="text-sm text-blue-600 hover:underline"
-						onClick={() => fetchNextPage()}
-						disabled={isFetchingNextPage}
-					>
-						{isFetchingNextPage ? "Loading..." : "Load more"}
-					</button>
-				</div>
-			)}
-		</div>
-	);
-}
-
-interface Props {
-	mounts: any,
-	containerId: string,
-	onVolumeAttached?: ()=> void,
-}
-export function ContainerVolumesPanel({ mounts, containerId, onVolumeAttached }: Props) {
-	const { data: volumeList } = useGetVolumesSelectList();
-	const [selectedVolume, setSelectedVolume] = useState<string | null>(null);
-	const [mountPath, setMountPath] = useState("");
-	const [isAddingVolume, setIsAddingVolume] = useState(false);
-	const { mutate: attachVolume, isPending: isAttaching } = useAttachVolumeToContainer(containerId);
-	const handleAddVolume = () => {
-		if (!selectedVolume || !mountPath) return;
-
-		attachVolume(
-			{
-				volume_name: selectedVolume,
-				mount_path: mountPath,
-				read_only: false,
-			},
-			{
-				onSuccess: (response) => {
-					toast.success(response.message || "Volume attached");
-					onVolumeAttached?.();
-					setIsAddingVolume(false);
-					setSelectedVolume(null);
-					setMountPath("");
-				},
-				onError: (error) => {
-					toast.error(error.message || "Failed to attach volume");
-				},
-			},
-		);
-	};
-
-	return (
-		<DataSection title="Mounts" icon={<HardDriveIcon className="w-5 h-5" />}>
-			<div className="grid gap-4 sm:grid-cols-2">
-				{mounts?.map((m, i) => (
-					<div key={i} className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-						<div className="flex items-center gap-2 font-medium text-blue-600">
-							<HardDriveIcon className="w-4 h-4" />
-							{m.destination || <span className="text-gray-400 italic">Unknown destination</span>}
-						</div>
-						<div className="text-sm text-gray-600 truncate mt-1">
-							<span className="font-semibold">Source:</span>{" "}
-							{m.source || <span className="italic text-gray-400">Not available</span>}
-						</div>
-						<div className="flex justify-between text-xs text-gray-500 mt-2">
-							<span><span className="font-semibold">Type:</span> {m.type ?? "—"}</span>
-							<span><span className="font-semibold">Mode:</span> {m.mode ?? "—"}</span>
-						</div>
-					</div>
-				))}
-			</div>
-
-			<div className="mt-6">
-				{isAddingVolume ? (
-					<div className="mt-4 border border-gray-200 rounded-xl bg-gray-50 p-5 shadow-sm">
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-							<div className="flex flex-col">
-								<label className="text-sm font-medium text-gray-700 mb-1">Volume</label>
-								<select
-									value={selectedVolume ?? ""}
-									onChange={(e) => setSelectedVolume(e.target.value)}
-									className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
-								>
-									<option value="">Select a volume</option>
-									{volumeList?.volumes.map((v) => (
-										<option key={v.id} value={v.name}>{v.name}</option>
-									))}
-								</select>
-							</div>
-
-							<div className="flex flex-col">
-								<label className="text-sm font-medium text-gray-700 mb-1">Mount Path</label>
-								<input
-									type="text"
-									placeholder="/path/in/container"
-									value={mountPath}
-									onChange={(e) => setMountPath(e.target.value)}
-									className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
-								/>
-							</div>
-
-						</div>
-
-						<div className="flex justify-end gap-3 mt-5">
-							<button
-								onClick={() => setIsAddingVolume(false)}
-								className="text-gray-500 hover:text-gray-700 text-sm"
-							>
-								Cancel
-							</button>
-							<button
-								onClick={handleAddVolume}
-								disabled={isAttaching}
-								className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2 ${isAttaching ? "opacity-50 cursor-not-allowed" : ""}`}
-							>
-								{isAttaching ? (
-									<span className="animate-pulse">Attaching...</span>
-								) : (
-									<>
-										<LinkIcon className="w-4 h-4" />
-										Attach Volume
-									</>
-								)}
-							</button>
-
-						</div>
-					</div>
-				) : (
-					<button
-						onClick={() => setIsAddingVolume(true)}
-						className="mt-5 inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
-					>
-						<PlusCircleIcon className="w-4 h-4" />
-						Add Volume
-					</button>
-				)}
-			</div>
-		</DataSection>
-	);
-}
-
-function DeleteButtonGroup({
-	onAction,
-	isLoading,
-	disabled,
-}: {
-	onAction: (type: "delete" | "forceDelete")=> void,
-	isLoading: boolean,
-	disabled?: boolean,
-}) {
-	const [open, setOpen] = useState(false);
-	const [confirmStage, setConfirmStage] = useState<0 | 1 | 2>(0);
-	const [actionType, setActionType] = useState<"delete" | "forceDelete" | null>(null);
-
-	const getLabel = (type: "delete" | "forceDelete") => {
-		const stages = {
-			delete: ["Delete", "Confirm Delete", "Are you sure?"],
-			forceDelete: ["Force Delete", "Confirm Force", "Force?"],
-		};
-
-		return stages[type][confirmStage] || stages[type][0];
-	};
-
-	const handleClick = (type: "delete" | "forceDelete") => {
-		if (actionType !== type) {
-			setActionType(type);
-			setConfirmStage(1);
-
-			return;
-		}
-
-		if (confirmStage === 1) {
-			setConfirmStage(2);
-
-			return;
-		}
-
-		onAction(type);
-		setConfirmStage(0);
-		setActionType(null);
-		setOpen(false);
-	};
-
-	useEffect(() => {
-		if (confirmStage > 0) {
-			const timeout = setTimeout(() => {
-				setConfirmStage(0);
-				setActionType(null);
-			}, 8000);
-
-			return () => clearTimeout(timeout);
-		}
-	}, [confirmStage]);
-
-	return (
-		<div className="relative inline-block">
-			<button
-				onClick={() => setOpen(prev => !prev)}
-				disabled={isLoading || disabled}
-				className={`bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition 
-                ${isLoading || disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-			>
-				<Trash2 size={16} />
-				Delete
-				<span className="ml-1">▾</span>
-			</button>
-
-			{open && (
-				<div className="absolute mt-1 right-0 bg-white border rounded shadow-lg z-10 text-sm w-48">
-					{(["delete", "forceDelete"] as const).map((type) => (
-						<button
-							key={type}
-							className={`flex w-full items-center justify-between px-3 py-2 hover:bg-gray-100 text-left 
-                                ${actionType === type && confirmStage > 0 ? "bg-yellow-100 font-semibold" : ""}`}
-							onClick={() => handleClick(type)}
-							disabled={isLoading}
-						>
-							<span className="flex items-center gap-2">
-								{type === "delete" ? <Trash2 size={14} /> : <Flame size={14} className="text-red-600" />}
-								{getLabel(type)}
-							</span>
-							{actionType === type && confirmStage > 0 && <span className="text-yellow-600 text-xs">⚠</span>}
-						</button>
-					))}
-					{confirmStage > 0 && (
-						<div className="text-xs text-gray-500 px-3 py-2 border-t">
-							Click again to confirm. Auto-cancels in 8s.
-						</div>
-					)}
-				</div>
-			)}
-		</div>
 	);
 }

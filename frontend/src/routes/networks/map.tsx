@@ -3,11 +3,10 @@ import { Network, RefreshCw, Layers } from "lucide-react";
 import { useRef, useMemo, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 
-import { DataSection } from "../containers/$id";
-
 import type { ContainerNode } from "@/client";
 
 import { useGetNetworkMap } from "@/actions/queries/getNetworkMap";
+import { DataSection } from "@/components/DataSection";
 
 export const Route = createFileRoute("/networks/map")({
 	component: NetworkMapPage,

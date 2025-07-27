@@ -1,0 +1,42 @@
+[2025-07-27 16:45:11] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:12] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:14] [INFO] Attempting to start container: 019f254fb813
+[2025-07-27 16:45:15] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:16] [INFO] Successfully started container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:16] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:18] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:22] [INFO] Stats stream stopped for container 019f254fb813
+[2025-07-27 16:45:26] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:26] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:26] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:29] [INFO] Stopping container: 019f254fb813
+[2025-07-27 16:45:29] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:29] [INFO] Container stopped: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:30] [INFO] Matched container: db (019f254fb8133ac6d28a75019a267a80a5b28aa60a461bf45faa24aa78bfcfbb)
+[2025-07-27 16:45:30] [WARNING] Block IO parse failed: 'NoneType' object is not iterable
+[2025-07-27 16:45:31] [WARNING] Block IO parse failed: 'NoneType' object is not iterable
+[2025-07-27 16:45:31] [INFO] Stats stream stopped for container 019f254fb813
+[2025-07-27 16:45:38] [INFO] Matched container: worker (10804b7be532c6f413dd1f2271dca6c64ccaa92c21445542eea12c15f8a45bdf)
+[2025-07-27 16:45:38] [INFO] Matched container: worker (10804b7be532c6f413dd1f2271dca6c64ccaa92c21445542eea12c15f8a45bdf)
+[2025-07-27 16:45:42] [INFO] Matched container: worker (10804b7be532c6f413dd1f2271dca6c64ccaa92c21445542eea12c15f8a45bdf)
+[2025-07-27 17:06:59] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:07:00] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:07:00] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:07:37] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:07:37] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:00] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:00] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:04] [INFO] Stats stream stopped for container a3d433080701
+[2025-07-27 17:08:43] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:43] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:44] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:45] [INFO] Stats stream stopped for container a3d433080701
+[2025-07-27 17:08:45] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:46] [INFO] Stopping container: a3d433080701
+[2025-07-27 17:08:46] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:57] [INFO] Container stopped: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:57] [WARNING] Block IO parse failed: 'NoneType' object is not iterable
+[2025-07-27 17:08:58] [INFO] Matched container: Ubuntu_test (a3d4330807016a77c4f64c69e0fe573e3972441c30eef55bf6428bbceb7ec5b6)
+[2025-07-27 17:08:58] [WARNING] Block IO parse failed: 'NoneType' object is not iterable
+[2025-07-27 17:08:59] [WARNING] Block IO parse failed: 'NoneType' object is not iterable
+[2025-07-27 17:08:59] [INFO] Stats stream stopped for container a3d433080701
