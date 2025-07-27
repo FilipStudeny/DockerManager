@@ -1,6 +1,0 @@
-[2025-07-17 10:51:07,297] [INFO] Attempting to start container: e0726ac00946
-[2025-07-17 10:51:08,331] [INFO] Successfully started container: mongo (e0726ac00946a4c31a7d7ae63643d4e01aefb1227bf140998c3dec78cb371cc6)
-[2025-07-17 10:51:27,189] [INFO] Restarting container: e0726ac00946
-[2025-07-17 10:51:28,876] [INFO] Container restarted: mongo (e0726ac00946a4c31a7d7ae63643d4e01aefb1227bf140998c3dec78cb371cc6)
-[2025-07-17 10:51:35,176] [INFO] Stopping container: e0726ac00946
-[2025-07-17 10:51:36,000] [INFO] Container stopped: mongo (e0726ac00946a4c31a7d7ae63643d4e01aefb1227bf140998c3dec78cb371cc6)
