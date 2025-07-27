@@ -74,6 +74,7 @@ class DockerContainerBuilder:
 
     def with_volume(self, volume_mock, destination="/mnt/{name}"):
         self._volumes.append({
+            "Name": volume_mock.name,
             "Source": volume_mock.attrs["Mountpoint"],
             "Destination": destination.format(name=volume_mock.name),
             "Mode": "",
@@ -101,6 +102,7 @@ class DockerContainerBuilder:
     def build(self):
         mock = MagicMock()
         mock.short_id = self._short_id
+        mock.id = self._short_id
         mock.name = self._name
         mock.status = self._status
         mock.image.tags = self._image_tags

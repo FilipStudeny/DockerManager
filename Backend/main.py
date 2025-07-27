@@ -1,13 +1,12 @@
 import asyncio
 import logging
 import threading
-import traceback
 from typing import List, Optional
 
 import docker
-from docker.errors import DockerException, NotFound, APIError
+from docker.errors import DockerException
 from docker.models.containers import Container
-from fastapi import FastAPI, HTTPException, Query, WebSocket, Body
+from fastapi import FastAPI, Query, WebSocket, Body
 from fastapi import Path
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse
@@ -23,8 +22,12 @@ from Models.models import (
     CreateContainerRequest, CreateDockerNetworkRequest, AssignNetworkRequest, DisconnectNetworkRequest,
     AssignMultipleNetworksRequest, AssignNetworkWithIPRequest, DockerNetworkSelectItem
 )
+from Routes.Commands.AssignNetworkToContainer.assign_multiple_networks_to_container_command import \
+    assign_multiple_networks_to_container_command
 from Routes.Commands.AssignNetworkToContainer.assign_network_to_container_command import \
     assign_network_to_container_command
+from Routes.Commands.AssignNetworkWithStaticIP.assign_network_with_static_ip_command import \
+    assign_network_with_static_ip_command
 from Routes.Commands.AttachVolume.attach_volume_to_container_query import attach_volume_to_container_query
 from Routes.Commands.CreateContainer.create_container_command import create_container_stream_logs_command
 from Routes.Commands.CreateDockerNetwork.create_docker_network_command import create_docker_network_command
@@ -51,9 +54,10 @@ from Routes.Queries.GetDockerOverview.get_docker_overview_query import get_docke
 from Routes.Queries.GetDockerStatus.check_docker_status_query import check_docker_status_query
 from Routes.Queries.GetDockerVolumes.get_docker_volumes_query import get_docker_volumes_query
 from Routes.Queries.GetNetworkMap.get_docker_network_map import get_docker_network_map
+from Routes.Queries.GetNetworksSmallList.list_docker_networks_lite_query import list_docker_networks_lite_query
 from Routes.Queries.GetTopContainers.get_top_containers_query import get_top_containers_query
 from Routes.Queries.ListDockerVolumesSelectList.list_docker_volumes_lite_query import list_docker_volumes_lite_query
-from Utils.getDocker import get_docker_client, get_container
+from Utils.getDocker import get_container
 from Utils.logger import logger
 from Utils.stats import _extract_network_io, _extract_blk_io, _calculate_cpu_percent
 
@@ -357,40 +361,7 @@ def disconnect_network_from_container(container_id: str, body: DisconnectNetwork
     summary="Assign multiple Docker networks to a container"
 )
 def assign_multiple_networks_to_container(container_id: str, body: AssignMultipleNetworksRequest):
-    try:
-        client = get_docker_client()
-        container = get_container(container_id)
-        if not container:
-            raise HTTPException(status_code=404, detail=f"Container '{container_id}' not found")
-
-        container.reload()
-        already_connected = container.attrs.get("NetworkSettings", {}).get("Networks", {}).keys()
-
-        messages = []
-        for net_name in body.network_names:
-            if net_name in already_connected:
-                messages.append(f"⚠️ Already connected to '{net_name}'")
-                continue
-
-            try:
-                net = client.networks.get(net_name)
-                net.connect(container)
-                messages.append(f"✅ Connected to '{net_name}'")
-            except NotFound:
-                messages.append(f"❌ Network '{net_name}' not found")
-            except Exception as e:
-                messages.append(f"❌ Failed to connect to '{net_name}': {e}")
-
-        return GenericMessageResponse(
-            success=True,
-            code=200,
-            message="\n".join(messages)
-        )
-
-    except Exception as e:
-        logger.exception("Error assigning multiple networks")
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return assign_multiple_networks_to_container_command(container_id, body)
 
 @app.post(
     "/containers/{container_id}/assign-network-ip",
@@ -399,39 +370,7 @@ def assign_multiple_networks_to_container(container_id: str, body: AssignMultipl
     summary="Assign a Docker network to a container with optional static IP"
 )
 def assign_network_with_static_ip(container_id: str, body: AssignNetworkWithIPRequest):
-    try:
-        client = get_docker_client()
-        container = get_container(container_id)
-        if not container:
-            raise HTTPException(status_code=404, detail=f"Container '{container_id}' not found")
-
-        container.reload()
-        current_networks = container.attrs.get("NetworkSettings", {}).get("Networks", {})
-        if body.network_name in current_networks:
-            return GenericMessageResponse(
-                success=False,
-                code=400,
-                message=f"Already connected to network '{body.network_name}'"
-            )
-
-        network = client.networks.get(body.network_name)
-
-        connect_kwargs = {"container": container}
-        if body.ipv4_address:
-            connect_kwargs["ipv4_address"] = body.ipv4_address
-
-        network.connect(**connect_kwargs)
-
-        return GenericMessageResponse(
-            success=True,
-            code=200,
-            message=f"Network '{body.network_name}' assigned to container '{container.name}'"
-                    f"{f' with IP {body.ipv4_address}' if body.ipv4_address else ''}."
-        )
-
-    except Exception as e:
-        logger.exception("Failed to assign network with static IP")
-        raise HTTPException(status_code=500, detail=str(e))
+    return assign_network_with_static_ip_command(container_id, body)
 
 
 @app.get(
@@ -441,30 +380,7 @@ def assign_network_with_static_ip(container_id: str, body: AssignNetworkWithIPRe
     summary="List Docker networks for dropdown selection"
 )
 def list_docker_networks_lite():
-    try:
-        client = get_docker_client()
-        networks = client.networks.list()
-
-        result = []
-        for network in networks:
-            inspect = client.api.inspect_network(network.id)
-            ipam_config = inspect.get("IPAM", {}).get("Config", [])
-            gateway = ipam_config[0].get("Gateway") if ipam_config else None
-
-            result.append(DockerNetworkSelectItem(
-                id=network.id,
-                name=network.name,
-                gateway=gateway
-            ))
-
-        return result
-
-    except DockerException as e:
-        logger.error(f"Docker error while listing networks: {e}")
-        raise HTTPException(status_code=503, detail="Docker is unreachable or misconfigured")
-    except Exception as e:
-        logger.exception("Unexpected error while listing networks")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return list_docker_networks_lite_query()
 
 
 @app.websocket("/ws/containers/{container_id}/terminal")

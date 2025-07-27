@@ -1,91 +1,81 @@
-from unittest.mock import patch, MagicMock
 import pytest
+from unittest.mock import patch
 
-from fastapi import HTTPException
+from Models.models import ContainerDetails, ContainerStatusEnum
 from Routes.Queries.GetContainerDetail.get_container_details_query import get_container_details_query
-from Models.models import ContainerStatusEnum
 from Tests.utils.Builders.DockerContainerBuilder import DockerContainerBuilder
 from Tests.utils.Builders.DockerImageBuilder import DockerImageBuilder
-from Tests.utils.Builders.DockerVolumeBuilder import DockerVolumeBuilder
 
 
-@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
-@patch("Routes.Queries.GetContainerDetail.get_container_details_query.detect_container_errors")
-def test_get_container_details_query_success(mock_detect_errors, mock_get_container):
+@pytest.fixture
+def mock_container():
+    image = DockerImageBuilder().with_tags(["nginx:latest"]).build()
+
     container = (
         DockerContainerBuilder()
-        .with_id("abc123")
-        .with_name("web")
+        .with_image(image)
         .with_status("running")
-        .with_image(DockerImageBuilder().with_tags(["nginx:latest"]).build())
         .with_command(["npm", "start"])
-        .with_created("2024-07-15T12:00:00+00:00")
-        .with_logs(b"INFO\nERROR: something went wrong")
-        .with_port_mapping("80/tcp", "127.0.0.1", "8080")
-        .with_ip("172.17.0.2")
-        .with_network_mode("bridge")
-        .with_volume(
-            DockerVolumeBuilder()
-            .with_name("my-volume")
-            .with_mountpoint("/host")
-            .build(),
-            destination="/data"
-        )
-        .with_platform("linux/amd64")
-        .with_cpu_limits(200000, 100000)
-        .with_memory_usage(123456, 789012)
+        .with_port_mapping(container_port="80/tcp", host_ip="0.0.0.0", host_port="8080")
+        .with_created("2024-01-01T12:00:00Z")
+        .with_cpu_limits(quota=200000, period=100000)
+        .with_memory_usage(52428800, 1073741824)  # 50MB used / 1GB total
+        .with_labels({"service": "web"})
         .build()
     )
 
-    mock_get_container.return_value = container
-    mock_detect_errors.return_value = (1, "something went wrong")
-
-    result = get_container_details_query("abc123")
-
-    assert result.id == "abc123"
-    assert result.name == "web"
-    assert result.status == ContainerStatusEnum.running
-    assert result.ip_address == "172.17.0.2"
-    assert result.cpu_limit == 2.0
-    assert result.memory_usage == 123456
-    assert result.mounts[0].destination == "/data"
-    assert result.image == ["nginx:latest"]
-    assert result.error_count == 1
-
-
-@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
-def test_get_container_details_query_not_found(mock_get_container):
-    mock_get_container.return_value = None
-
-    with pytest.raises(HTTPException) as excinfo:
-        get_container_details_query("nonexistent")
-
-    assert excinfo.value.status_code == 404
-    assert "not found" in str(excinfo.value.detail).lower()
+    return container
 
 
 @patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
 @patch("Routes.Queries.GetContainerDetail.get_container_details_query.detect_container_errors")
-def test_get_container_details_query_exception(mock_detect_errors, mock_get_container):
-    mock_container = MagicMock()
-    mock_container.status = "running"
-    mock_container.stats.side_effect = Exception("Boom")
-    mock_container.attrs = {
-        "NetworkSettings": {"IPAddress": "1.2.3.4"},
-        "HostConfig": {"NetworkMode": "bridge", "CpuQuota": 100000, "CpuPeriod": 100000},
-        "Config": {"Cmd": ["echo"], "Labels": {}},
-        "Created": "2024-07-15T12:00:00Z",
-        "Platform": "linux/amd64",
-        "Mounts": [],
-    }
-    mock_container.short_id = "err123"
-    mock_container.name = "broken"
-    mock_container.image.tags = ["test"]
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.enrich_container_summary")
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query._extract_networks", return_value=[])
+def test_get_container_details_success(mock_extract_networks, mock_enrich, mock_detect_errors, mock_get_container, mock_container):
     mock_get_container.return_value = mock_container
-    mock_detect_errors.return_value = (0, None)
+    mock_detect_errors.return_value = (1, "error occurred")
 
-    with pytest.raises(HTTPException) as excinfo:
-        get_container_details_query("err123")
+    mock_enrich.return_value.model_dump.return_value = {
+        "id": mock_container.short_id,
+        "name": mock_container.name,
+        "status": ContainerStatusEnum.running,
+        "image": mock_container.image.tags,
+        "command": "npm start",
+        "created_at": mock_container.attrs["Created"],
+        "uptime_seconds": 123,
+        "ports": [],
+        "error_count": 1,
+        "latest_error_message": "error occurred",
+        "volumes": 0
+    }
 
-    assert excinfo.value.status_code == 500
-    assert "failed to retrieve container details" in str(excinfo.value.detail).lower()
+    container_id = mock_container.short_id
+    result: ContainerDetails = get_container_details_query(container_id)
+
+    assert isinstance(result, ContainerDetails)
+    assert result.name == mock_container.name
+    assert result.status == ContainerStatusEnum.running
+    assert result.cpu_percent > 0.0
+    assert result.memory_usage == 52428800
+    assert result.memory_limit == 1073741824
+    assert result.cpu_limit == 2.0
+    assert result.mounts == []
+    assert result.networks == []
+
+
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
+def test_get_container_details_not_found(mock_get_container):
+    mock_get_container.return_value = None
+    with pytest.raises(Exception) as exc:
+        get_container_details_query("nonexistent-id")
+    assert exc.value.status_code == 404
+    assert "not found" in str(exc.value.detail).lower()
+
+
+@patch("Routes.Queries.GetContainerDetail.get_container_details_query.get_container")
+def test_get_container_details_raises_internal_error(mock_get_container):
+    mock_get_container.side_effect = RuntimeError("Docker exploded")
+    with pytest.raises(Exception) as exc:
+        get_container_details_query("abc123")
+    assert exc.value.status_code == 500
+    assert "failed to retrieve container details" in str(exc.value.detail).lower()

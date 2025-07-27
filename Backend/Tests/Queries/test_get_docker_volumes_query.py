@@ -1,59 +1,83 @@
-from unittest.mock import patch, MagicMock
 import pytest
+from unittest.mock import patch, MagicMock
+from docker.errors import DockerException
+from fastapi import HTTPException
 
 from Routes.Queries.GetDockerVolumes.get_docker_volumes_query import get_docker_volumes_query
+from Models.models import DockerVolumeSummary, ContainerStatusEnum
+from Tests.utils.Builders.DockerVolumeBuilder import DockerVolumeBuilder
+from Tests.utils.Builders.DockerContainerBuilder import DockerContainerBuilder
+
+
+@pytest.fixture
+def mock_volume_and_attached_container():
+    volume = DockerVolumeBuilder().with_name("app_data").build()
+
+    container = (
+        DockerContainerBuilder()
+        .with_status("running")
+        .with_name("backend")
+        .with_volume(volume, destination="/app/data")
+        .build()
+    )
+
+    return volume, container
 
 
 @patch("Routes.Queries.GetDockerVolumes.get_docker_volumes_query.get_docker_client")
-def test_get_docker_volumes_query_returns_multiple(mock_get_client):
-    # Mock volume 1
-    vol1 = MagicMock()
-    vol1.name = "vol-data"
-    vol1.attrs = {
-        "Driver": "local",
-        "Mountpoint": "/var/lib/docker/volumes/vol-data/_data",
-        "CreatedAt": "2024-07-01T10:00:00Z",
-        "Labels": {"project": "demo"},
-    }
+def test_get_docker_volumes_with_attached_container(mock_get_docker_client, mock_volume_and_attached_container):
+    volume, container = mock_volume_and_attached_container
 
-    # Mock volume 2
-    vol2 = MagicMock()
-    vol2.name = "vol-cache"
-    vol2.attrs = {
-        "Driver": "nfs",
-        "Mountpoint": "/mnt/nfs/cache",
-        "CreatedAt": "2024-07-05T18:30:00Z",
-        "Labels": {},
-    }
-
-    mock_client = MagicMock()
-    mock_client.volumes.list.return_value = [vol1, vol2]
-    mock_get_client.return_value = mock_client
-
-    result = get_docker_volumes_query()
-
-    assert len(result) == 2
-
-    assert result[0].name == "vol-data"
-    assert result[0].type == "volume"
-    assert result[0].source == "vol-data"
-    assert result[0].destination == "/var/lib/docker/volumes/vol-data/_data"
-    assert result[0].driver == "local"
-    assert result[0].mountpoint == "/var/lib/docker/volumes/vol-data/_data"
-    assert result[0].created_at == "2024-07-01T10:00:00Z"
-    assert result[0].labels == {"project": "demo"}
-
-    assert result[1].name == "vol-cache"
-    assert result[1].destination == "/var/lib/docker/volumes/vol-cache/_data"
-
-
-@patch("Routes.Queries.GetDockerVolumes.get_docker_volumes_query.get_docker_client")
-def test_get_docker_volumes_query_returns_empty_list(mock_get_client):
-    mock_client = MagicMock()
-    mock_client.volumes.list.return_value = []
-    mock_get_client.return_value = mock_client
+    client_mock = MagicMock()
+    client_mock.volumes.list.return_value = [volume]
+    client_mock.containers.list.return_value = [container]
+    mock_get_docker_client.return_value = client_mock
 
     result = get_docker_volumes_query()
 
     assert isinstance(result, list)
-    assert len(result) == 0
+    assert len(result) == 1
+
+    summary: DockerVolumeSummary = result[0]
+    assert summary.name == "app_data"
+    assert summary.type == "volume"
+    assert summary.source == "app_data"
+    assert summary.destination == "/var/lib/docker/volumes/app_data/_data"
+    assert summary.driver == volume.driver
+    assert summary.labels == volume.attrs["Labels"]
+
+    assert len(summary.containers) == 1
+    assert summary.containers[0].name == container.name
+    assert summary.containers[0].status == ContainerStatusEnum.running
+    assert summary.containers[0].mountpoint == "/app/data"
+
+
+@patch("Routes.Queries.GetDockerVolumes.get_docker_volumes_query.get_docker_client")
+def test_get_docker_volumes_without_attached_containers(mock_get_docker_client):
+    volume = DockerVolumeBuilder().with_name("orphan_vol").build()
+    unrelated_container = DockerContainerBuilder().with_status("running").build()
+
+    unrelated_container.attrs["Mounts"] = []
+
+    client_mock = MagicMock()
+    client_mock.volumes.list.return_value = [volume]
+    client_mock.containers.list.return_value = [unrelated_container]
+    mock_get_docker_client.return_value = client_mock
+
+    result = get_docker_volumes_query()
+
+    assert len(result) == 1
+    summary = result[0]
+    assert summary.name == "orphan_vol"
+    assert summary.containers == []
+
+
+@patch("Routes.Queries.GetDockerVolumes.get_docker_volumes_query.get_docker_client")
+def test_get_docker_volumes_docker_error(mock_get_docker_client):
+    mock_get_docker_client.side_effect = DockerException("Docker connection failed")
+
+    with pytest.raises(HTTPException) as exc:
+        get_docker_volumes_query()
+
+    assert exc.value.status_code == 503
+    assert "unreachable" in str(exc.value.detail).lower()

@@ -33,11 +33,19 @@ class DockerVolumeBuilder:
         return self
 
     def build(self):
-        mock = MagicMock()
-        mock.name = self._name
-        mock.driver = self._driver
-        mock.attrs = {
-            "Mountpoint": self._mountpoint,
-            "Labels": self._labels,
+        return FakeDockerVolume(
+            name=self._name,
+            driver=self._driver,
+            mountpoint=self._mountpoint,
+            labels=self._labels
+        )
+
+class FakeDockerVolume:
+    def __init__(self, name: str, driver: str, mountpoint: str, labels: Dict[str, str]):
+        self.name = name
+        self.driver = driver
+        self.attrs = {
+            "Mountpoint": mountpoint,
+            "Labels": labels,
+            "Driver": driver
         }
-        return mock

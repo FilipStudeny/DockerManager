@@ -1,73 +1,88 @@
-from unittest.mock import patch, MagicMock
 import pytest
+from unittest.mock import patch, MagicMock
 
-from Models.models import ContainerStatusEnum
+from Models.models import ContainerSummary, ContainerStatusEnum
 from Routes.Queries.GetConainersList.get_containers_list_query import get_containers_list_query
 from Tests.utils.Builders.DockerContainerBuilder import DockerContainerBuilder
 from Tests.utils.Builders.DockerImageBuilder import DockerImageBuilder
 
 
-@patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
-def test_get_containers_list_query_returns_multiple(mock_get_client):
-    mock_docker = MagicMock()
+@pytest.fixture
+def mock_container_running():
+    image = DockerImageBuilder().with_tags(["nginx:latest"]).build()
 
-    container1 = (
+    return (
         DockerContainerBuilder()
-        .with_id("abc123")
-        .with_name("web")
+        .with_image(image)
         .with_status("running")
-        .with_image(DockerImageBuilder().with_tags(["nginx:latest"]).build())
         .with_command(["npm", "start"])
-        .with_created("2024-07-15T12:00:00+00:00")
-        .with_logs(b"INFO: start\nERROR: crash")
-        .with_port_mapping("80/tcp", "127.0.0.1", "8080")
+        .with_created("2024-01-01T12:00:00Z")
+        .with_cpu_limits(200000, 100000)
+        .with_port_mapping("80/tcp", "0.0.0.0", "8080")
+        .with_memory_usage(1024 * 1024 * 50, 1024 * 1024 * 1024)
         .build()
     )
 
-    container2 = (
+
+@pytest.fixture
+def mock_container_exited():
+    image = DockerImageBuilder().with_tags(["redis:alpine"]).build()
+
+    return (
         DockerContainerBuilder()
-        .with_id("def456")
-        .with_name("db")
+        .with_image(image)
         .with_status("exited")
-        .with_image(DockerImageBuilder().with_tags(["postgres:15"]).build())
-        .with_command(["postgres"])
-        .with_created("2024-07-15T14:00:00+00:00")
-        .with_logs(b"boot complete")
-        .with_port_mapping("5432/tcp", "127.0.0.1", "5432")
+        .with_command(["redis-server"])
+        .with_created("2024-01-01T12:00:00Z")
         .build()
     )
-
-    mock_docker.containers.list.return_value = [container1, container2]
-    mock_get_client.return_value = mock_docker
-
-    result = get_containers_list_query()
-
-    assert len(result) == 2
-    assert result[0].id == "abc123"
-    assert result[1].id == "def456"
-    assert result[0].status == ContainerStatusEnum.running
-    assert result[1].status == ContainerStatusEnum.stopped
-    assert result[0].error_count == 1
-    assert "error" in result[0].latest_error_message.lower()
 
 
 @patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
-def test_get_containers_list_query_returns_empty(mock_get_client):
-    mock_docker = MagicMock()
-    mock_docker.containers.list.return_value = []
-    mock_get_client.return_value = mock_docker
+@patch("Routes.Queries.GetConainersList.get_containers_list_query.detect_container_errors")
+def test_get_containers_list_success(mock_detect_errors, mock_get_docker_client, mock_container_running, mock_container_exited):
+    mock_detect_errors.side_effect = [(0, None), (2, "crashed")]
 
-    result = get_containers_list_query()
+    docker_client_mock = MagicMock()
+    docker_client_mock.containers.list.return_value = [mock_container_running, mock_container_exited]
+    mock_get_docker_client.return_value = docker_client_mock
+
+    result = get_containers_list_query(all=True)
 
     assert isinstance(result, list)
-    assert len(result) == 0
+    assert len(result) == 2
+
+    c1: ContainerSummary = result[0]
+    c2: ContainerSummary = result[1]
+
+    assert c1.name == mock_container_running.name
+    assert c1.status == ContainerStatusEnum.running
+    assert c1.ports[0].container_port == "80/tcp"
+    assert c1.ports[0].host_port == "8080"
+    assert c1.uptime_seconds is not None
+    assert c1.error_count == 0
+
+    assert c2.name == mock_container_exited.name
+    assert c2.status == ContainerStatusEnum.stopped
+    assert c2.uptime_seconds is None
+    assert c2.error_count == 2
+    assert c2.latest_error_message == "crashed"
 
 
 @patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
-def test_get_containers_list_query_raises_exception(mock_get_client):
-    mock_get_client.side_effect = Exception("Docker unavailable")
+def test_get_containers_list_empty(mock_get_docker_client):
+    docker_client_mock = MagicMock()
+    docker_client_mock.containers.list.return_value = []
+    mock_get_docker_client.return_value = docker_client_mock
 
-    with pytest.raises(Exception) as excinfo:
+    result = get_containers_list_query(all=True)
+    assert isinstance(result, list)
+    assert result == []
+
+
+@patch("Routes.Queries.GetConainersList.get_containers_list_query.get_docker_client")
+def test_get_containers_list_raises(mock_get_docker_client):
+    mock_get_docker_client.side_effect = Exception("Docker connection error")
+    with pytest.raises(Exception) as exc:
         get_containers_list_query()
-
-    assert "Docker unavailable" in str(excinfo.value)
+    assert "Docker connection error" in str(exc.value)
